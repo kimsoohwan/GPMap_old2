@@ -1,0 +1,161 @@
+// STL
+#include <string>
+
+// PCL
+#include <pcl/point_cloud.h>
+#include <pcl/io/pcd_io.h>
+#include <pcl/io/ply_io.h>
+#include <pcl/common/transforms.h>
+#include <pcl/registration/icp.h>
+#include <pcl/visualization/cloud_viewer.h>
+
+// Boost
+#include <boost/thread/thread.hpp>
+
+int main(int argc, char** argv)
+{
+	// load Stanford Bunny
+	const std::string strDataFolder("C:\\Soohwan Kim\\[01] My Castle - Research\\[07] My Knights - Development\\DataSet - new\\The Stanford 3D Scanning Repository\\Stanford Bunny\\data\\pcd\\");
+	//const std::string strDataFolder("C:\\Soohwan Kim\\[01] My Castle - Research\\[07] My Knights - Development\\DataSet - new\\The Stanford 3D Scanning Repository\\Stanford Bunny\\data\\Swan\\");
+
+	const std::string strFilenames[] = {"bun000.pcd", "bun090.pcd", "bun180.pcd", "bun270.pcd"};
+	//const std::string strFilenames[] = {"bun000.ply", "bun090.ply", "bun180.ply", "bun270.ply"};
+
+	const Eigen::Vector3f cameraTranslation = Eigen::Vector3f(-0.0172, -0.0936, -0.734);
+	const Eigen::Quaternionf cameraQuaternion = Eigen::Quaternionf(-0.0461723, 0.970603, -0.235889, 0.0124573);
+	const Eigen::Vector3f translations[] = {Eigen::Vector3f(0, 0, 0),
+														 Eigen::Vector3f(2.20761e-05, -3.34606e-05, -7.20881e-05),
+														 Eigen::Vector3f(0.000116991, 2.47732e-05, -4.6283e-05),
+														 Eigen::Vector3f(0.000130273, 1.58623e-05, 0.000406764)};
+	Eigen::Quaternionf quaternions[4];
+	//quaternions[0] = Eigen::Quaternionf(0, 0, 0, 1);
+	//quaternions[0] = Eigen::Quaternionf(0.000335889, -0.708202, 0.000602459, 0.706009);
+	//quaternions[0] = Eigen::Quaternionf(-0.00215148, 0.999996, -0.0015001, 0.000892527);
+	//quaternions[0] = Eigen::Quaternionf(0.000462632, 0.707006, -0.00333301, 0.7072);
+	quaternions[0] = Eigen::Quaternionf(1, 0, 0, 0);
+	quaternions[0] = Eigen::Quaternionf(0.706009, 0.000335889, -0.708202, 0.000602459);
+	quaternions[0] = Eigen::Quaternionf(0.000892527, -0.00215148, 0.999996, -0.0015001);
+	quaternions[0] = Eigen::Quaternionf(0.7072, 0.000462632, 0.707006, -0.00333301);
+	//const Eigen::Quaternionf quaternions[]  = {Eigen::Quaternionf(0, 0, 0, 1),
+	//														 Eigen::Quaternionf(0.000335889, -0.708202, 0.000602459, 0.706009),
+	//														 Eigen::Quaternionf(-0.00215148, 0.999996, -0.0015001, 0.000892527),
+	//														 Eigen::Quaternionf(0.000462632, 0.707006, -0.00333301, 0.7072)};
+	const Eigen::Vector3i colors[] = {Eigen::Vector3i(255, 255, 255),		// gray
+												 Eigen::Vector3i(255, 0, 0),		// red
+												 Eigen::Vector3i(0, 255, 0),		// green
+												 Eigen::Vector3i(0, 0, 255)};		// blue
+
+	// load
+	pcl::PointCloud<pcl::PointXYZ>::Ptr pClouds[4];
+	for(int i = 0; i < 4; i++)
+	{
+		pClouds[i].reset(new pcl::PointCloud<pcl::PointXYZ>());
+		//if(pcl::io::loadPLYFile<pcl::PointXYZ>((strDataFolder + strFilenames[i]).c_str(), *(pClouds[i])) == -1)
+		if(pcl::io::loadPCDFile<pcl::PointXYZ>((strDataFolder + strFilenames[i]).c_str(), *(pClouds[i])) == -1)
+		{
+			PCL_ERROR((std::string("Couldn't read ") + strFilenames[i] + "\n").c_str());
+			return (-1);
+		}
+		else
+		{
+			std::cout << pClouds[i]->size() << " points are loaded" << std::endl;
+			//pcl::transformPointCloud(*(pClouds[i]), *(pClouds[i]), translations[i], quaternions[i]);
+			//pcl::transformPointCloud(*(pClouds[i]), *(pClouds[i]), translations[i], Eigen::Quaternionf(1, 0, 0, 0));
+			//pcl::transformPointCloud(*(pClouds[i]), *(pClouds[i]), Eigen::Vector3f(0, 0, 0), quaternions[i]);
+
+			//http://www.euclideanspace.com/maths/geometry/rotations/conversions/quaternionToMatrix/
+			//Eigen::Matrix4f T = Eigen::Matrix4f::Zero();
+			//T.topLeftCorner(3, 3) = quaternions[i].toRotationMatrix();
+			//T.topRightCorner(3, 1) = translations[i];
+			//T(3, 3) = 1;
+			//pcl::transformPointCloud(*(pClouds[i]), *(pClouds[i]), T);
+			//std::cout << "T = " << std::endl << T << std::endl << std::endl;
+
+			//https://code.google.com/p/graphbasedsurfacereconstruction/source/browse/src/de/h_da/fbi/cg/pointcloud/run/StanfordBunny.java
+			//Eigen::Transform<float,3,Eigen::Affine> t;
+			//t.rotate(quaternions[i]);
+			//for(unsigned int j = 0; j < pClouds[i]->size(); j++)
+			//{
+			//	// point
+			//	Eigen::Vector3f point;
+
+			//	// translation
+			//	point(0) = pClouds[i]->points[j].x + translations[i](0);
+			//	point(1) = pClouds[i]->points[j].y + translations[i](1);
+			//	point(2) = pClouds[i]->points[j].z + translations[i](2);
+
+			//	//pClouds[i]->points[j] = quaternions[i] * pClouds[i]->points[j];
+			//	point = t.linear() * point;
+			//	//point = t.linear() * vec1
+
+			//	pClouds[i]->points[j].x = point(0);
+			//	pClouds[i]->points[j].y = point(1);
+			//	pClouds[i]->points[j].z = point(2);
+			//}
+		}
+	}
+
+	Eigen::Transform<float,3,Eigen::Affine> t;
+	t.rotate(cameraQuaternion);
+	//cameraTranslation = t.linear() * cameraTranslation;
+
+	//// visualization 
+	//pcl::visualization::CloudViewer viewer("Cloud Viewer");
+	//viewer.showCloud(pCloud000);
+	//viewer.showCloud(pCloud045);
+	//while (!viewer.wasStopped())
+	//{
+	//}
+
+	//pcl::IterativeClosestPoint<pcl::PointXYZ, pcl::PointXYZ> icp;
+	//icp.setInputCloud(pCloud000);
+	//icp.setInputTarget(pCloud045);
+	//pcl::PointCloud<pcl::PointXYZ>::Ptr pFinal(new pcl::PointCloud<pcl::PointXYZ>);
+	//icp.align(*pFinal);
+	//std::cout << "has converged:" << icp.hasConverged() << " score: " << icp.getFitnessScore() << std::endl;
+	//Eigen::Matrix4f transformation_matrix = icp.getFinalTransformation();
+	//std::cout << icp.getFinalTransformation() << std::endl;
+
+	// transform
+	//pcl::PointCloud<pcl::PointXYZ>::Ptr pCloud000(new pcl::PointCloud<pcl::PointXYZ>);
+
+	// visualizer
+	pcl::visualization::PCLVisualizer viewer("3D Viewer");
+	//viewer.setBackgroundColor(1, 1, 1);
+	viewer.setBackgroundColor(0, 0, 0);
+	//int viewport1(0); int viewport2(1);
+	//viewer.createViewPort(0.0, 0.0, 0.5, 1.0, viewport1);
+	//viewer.createViewPort(0.5, 0.0, 1.0, 1.0, viewport2);
+	//viewer.setBackgroundColor(0, 0, 0, viewport1);
+	//viewer.setBackgroundColor(0, 0, 0, viewport2);
+
+	for(int i = 0; i < 4; i++)
+	{
+		pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ>::Ptr pColorHandle(new pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ>(pClouds[i], colors[i](0), colors[i](1), colors[i](2)));
+		viewer.addPointCloud<pcl::PointXYZ>(pClouds[i], *pColorHandle, strFilenames[i].c_str());
+		viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, strFilenames[i].c_str());
+		//viewer.addPointCloud<pcl::PointXYZ>(pClouds[i], strFilenames[i].c_str());
+		//viewer.addCoordinateSystem(0.1, translations[i](0), translations[i](1), translations[i](2));
+		//viewer.addCube(translations[i], quaternions[i]);
+		//viewer.addSphere(pcl::PointXYZ(translations[i](0), translations[i](1), translations[i](2)), 0.1);
+		//viewer.addCube(translations[i], quaternions[i], 0.01, 0.01, 0.01);
+	}
+	//viewer.addCube(cameraTranslation, cameraQuaternion, 0.01, 0.01, 0.01);
+	//viewer.addCube(cameraTranslation, Eigen::Quaternionf(), 0.01, 0.01, 0.01);
+	viewer.addCube(t.linear() * cameraTranslation, Eigen::Quaternionf(), 0.01, 0.01, 0.01);
+
+	// setting
+	viewer.addCoordinateSystem(0.1);
+	//viewer.initCameraParameters();
+	//viewer.resetCameraViewpoint("cloud1");
+	//viewer.resetCameraViewpoint(strFilenames[0].c_str());
+	viewer.resetCameraViewpoint(strFilenames[3].c_str());
+	viewer.setCameraPosition(-0.0172, -0.0936, -0.734, 0, 0, 1); //-0.0461723 0.970603 -0.235889 0.0124573
+
+	// main loop
+	while(!viewer.wasStopped())
+	{
+		viewer.spinOnce(100);
+		boost::this_thread::sleep(boost::posix_time::microseconds(100000));
+	}
+}

@@ -15,7 +15,7 @@
 #include <pcl/surface/mls.h>					// pcl::MovingLeastSquares
 
 // GPMap
-#include "util/utility.hpp"					// PointXYZVector
+#include "util/data_types.hpp"					// PointXYZVector
 #include "remove_NAN.hpp"
 
 namespace GPMap {
@@ -23,7 +23,7 @@ namespace GPMap {
 
 // pcl::Normal: float normal[3], curvature
 pcl::PointCloud<pcl::Normal>::Ptr 
-estimateSurfaceNormals(const pcl::PointCloud<pcl::PointXYZ>::Ptr		pPoints,
+estimateSurfaceNormals(const pcl::PointCloud<pcl::PointXYZ>::Ptr		&pPointCloud,
 							  const pcl::PointXYZ									&sensorPosition,
 							  const bool												bSearchNearestNeighbor,
 							  const float												param)
@@ -37,7 +37,7 @@ estimateSurfaceNormals(const pcl::PointCloud<pcl::PointXYZ>::Ptr		pPoints,
 #endif
 
 	// Set the input points
-	ne.setInputCloud(pPoints);
+	ne.setInputCloud(pPointCloud);
 
 	// Set the view point
 	ne.setViewPoint(sensorPosition.x, sensorPosition.y, sensorPosition.z);
@@ -54,7 +54,7 @@ estimateSurfaceNormals(const pcl::PointCloud<pcl::PointXYZ>::Ptr		pPoints,
 	else									ne.setRadiusSearch(param);
 
 	// Set the search surface (i.e., the points that will be used when search for the input points?neighbors)
-	ne.setSearchSurface(pPoints);
+	ne.setSearchSurface(pPointCloud);
 
 	// Compute the surface normals
 	pcl::PointCloud<pcl::Normal>::Ptr pNormals(new pcl::PointCloud<pcl::Normal>);
@@ -65,18 +65,18 @@ estimateSurfaceNormals(const pcl::PointCloud<pcl::PointXYZ>::Ptr		pPoints,
 
 // pcl::PointNormal: float x, y, znormal[3], curvature
 pcl::PointCloud<pcl::PointNormal>::Ptr 
-estimateSurfaceNormals(const pcl::PointCloud<pcl::PointXYZ>::Ptr		pPoints, 
+estimateSurfaceNormals(const pcl::PointCloud<pcl::PointXYZ>::Ptr		&pPointCloud, 
 							  const pcl::PointXYZ									&sensorPosition,
 							  const bool												bSearchNearestNeighbor,
 							  const float												param,
 							  std::vector<int>										&index)
 {
 	// estimate surface normals
-	pcl::PointCloud<pcl::Normal>::Ptr pNormals = estimateSurfaceNormals(pPoints, sensorPosition, bSearchNearestNeighbor, param);
+	pcl::PointCloud<pcl::Normal>::Ptr pNormals = estimateSurfaceNormals(pPointCloud, sensorPosition, bSearchNearestNeighbor, param);
 
 	// concatenate
 	pcl::PointCloud<pcl::PointNormal>::Ptr pPointNormals(new pcl::PointCloud<pcl::PointNormal>());
-	pcl::concatenateFields<pcl::PointXYZ, pcl::Normal, pcl::PointNormal>(*pPoints, *pNormals, *pPointNormals);
+	pcl::concatenateFields<pcl::PointXYZ, pcl::Normal, pcl::PointNormal>(*pPointCloud, *pNormals, *pPointNormals);
 
 	// extract NaN
 	removeNaNNormalsFromPointCloud<pcl::PointNormal>(*pPointNormals, *pPointNormals, index);
@@ -86,8 +86,8 @@ estimateSurfaceNormals(const pcl::PointCloud<pcl::PointXYZ>::Ptr		pPoints,
 
 // pcl::PointNormal: float x, y, znormal[3], curvature
 pcl::PointCloud<pcl::PointNormal>::Ptr 
-smoothAndNormalEstimation(pcl::PointCloud<pcl::PointXYZ>::Ptr	cloud,
-								  const double									radius)
+smoothAndNormalEstimation(const pcl::PointCloud<pcl::PointXYZ>::ConstPtr	&cloud,
+								  const double													radius)
 {
 	// Smoothing and normal estimation based on polynomial reconstruction
 	// Moving Least Squares (MLS) surface reconstruction method can be used to smooth and resample noisy data
@@ -124,7 +124,7 @@ smoothAndNormalEstimation(pcl::PointCloud<pcl::PointXYZ>::Ptr	cloud,
 	mls.process(*mls_points);
 	return mls_points;
 #else
-	mls.reconstruct(*pPoints);
+	mls.reconstruct(*pPointCloud);
 
 	// Output has the pcl::PointNormal type in order to store the normals calculated by MLS
 	pPointNormals = mls.getOutputNormals();
@@ -133,17 +133,17 @@ smoothAndNormalEstimation(pcl::PointCloud<pcl::PointXYZ>::Ptr	cloud,
 }
 
 template <typename NormalT>
-void normalizeSurfaceNormals(typename pcl::PointCloud<NormalT>::Ptr pPoints)
+void normalizeSurfaceNormals(typename pcl::PointCloud<NormalT>::Ptr &pPointCloud)
 {
 	float length;
-	for(unsigned int i = 0; i < pPoints->size(); i++)
+	for(unsigned int i = 0; i < pPointCloud->size(); i++)
 	{
-		length = sqrt(pPoints->points[i].normal_x * pPoints->points[i].normal_x
-				      + pPoints->points[i].normal_y * pPoints->points[i].normal_y
-					   + pPoints->points[i].normal_z * pPoints->points[i].normal_z);
-		pPoints->points[i].normal_x /= length;
-		pPoints->points[i].normal_y /= length;
-		pPoints->points[i].normal_z /= length;
+		length = sqrt(pPointCloud->points[i].normal_x * pPointCloud->points[i].normal_x
+				      + pPointCloud->points[i].normal_y * pPointCloud->points[i].normal_y
+					   + pPointCloud->points[i].normal_z * pPointCloud->points[i].normal_z);
+		pPointCloud->points[i].normal_x /= length;
+		pPointCloud->points[i].normal_y /= length;
+		pPointCloud->points[i].normal_z /= length;
 	}
 }
 
@@ -172,14 +172,14 @@ class ByMovingLeastSquares {};
 
 template <typename EstimateMethod>
 void estimateSurfaceNormals(const vector<pcl::PointCloud<pcl::PointXYZ>::Ptr>			&pointClouds, 
-									 const PointXYZVector												&sensorPositions,
+									 const PointXYZVector												&sensorPositionList,
 									 const bool																fSearchRadius, // SearchRadius or SearchK
 									 const float															param,			// radius or k
 									 vector<pcl::PointCloud<pcl::PointNormal>::Ptr>				&pointNormalClouds);
 
 template <>
 void estimateSurfaceNormals<ByNearestNeighbors>(const vector<pcl::PointCloud<pcl::PointXYZ>::Ptr>		&pointClouds,
-																const PointXYZVector												&sensorPositions,
+																const PointXYZVector												&sensorPositionList,
 																const bool															fSearchNearestK, // SearchRadius or SearchNearestK
 																const float															param,			// radius or k
 																vector<pcl::PointCloud<pcl::PointNormal>::Ptr>			&pointNormalClouds)
@@ -192,7 +192,7 @@ void estimateSurfaceNormals<ByNearestNeighbors>(const vector<pcl::PointCloud<pcl
 	{
 		std::cout << "Estimate surface normals: " << i << " ... ";
 		pointNormalClouds[i] = estimateSurfaceNormals(pointClouds[i], 
-																	 sensorPositions[i], 
+																	 sensorPositionList[i], 
 																	 fSearchNearestK, 
 																	 param, 
 																	 std::vector<int>());
@@ -202,7 +202,7 @@ void estimateSurfaceNormals<ByNearestNeighbors>(const vector<pcl::PointCloud<pcl
 
 template <>
 void estimateSurfaceNormals<ByMovingLeastSquares>(const vector<pcl::PointCloud<pcl::PointXYZ>::Ptr>		&pointClouds,
-																  const PointXYZVector												&sensorPositions,
+																  const PointXYZVector												&sensorPositionList,
 																  const bool															fSearchNearestK, // SearchRadius or SearchNearestK
 																  const float															param,			// radius or k
 																  vector<pcl::PointCloud<pcl::PointNormal>::Ptr>			&pointNormalClouds)
@@ -215,7 +215,7 @@ void estimateSurfaceNormals<ByMovingLeastSquares>(const vector<pcl::PointCloud<p
 	{
 		std::cout << "Estimate surface normals: " << i << " ... ";
 		pointNormalClouds[i] = smoothAndNormalEstimation(pointClouds[i], param);
-		flipSurfaceNormals(sensorPositions[i], *(pointNormalClouds[i]));
+		flipSurfaceNormals(sensorPositionList[i], *(pointNormalClouds[i]));
 		std::cout << pointNormalClouds[i]->size() << " normals." << std::endl;
 	}
 }

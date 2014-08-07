@@ -16,14 +16,20 @@
     <Filter Include="features">
       <UniqueIdentifier>{68af50d5-306a-4e67-a683-afc9dec685a4}</UniqueIdentifier>
     </Filter>
-    <Filter Include="bcm">
-      <UniqueIdentifier>{e624f4eb-beb5-4bbc-a94f-ec82c857fc83}</UniqueIdentifier>
-    </Filter>
     <Filter Include="util">
       <UniqueIdentifier>{59f3a57f-47ab-4959-bc99-9642a11add36}</UniqueIdentifier>
     </Filter>
     <Filter Include="data">
       <UniqueIdentifier>{c0cb9180-03a5-40a0-9ea6-3a3ee0953ef0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="common">
+      <UniqueIdentifier>{86c49b1f-1490-498d-b183-7e631fef2564}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="bcm">
+      <UniqueIdentifier>{7b505d8c-4249-4344-93ba-e9505fd11727}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="plsc">
+      <UniqueIdentifier>{b7d6365e-5ac5-4a7b-9611-b5efa6daa08f}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -48,14 +54,29 @@
     <ClInclude Include="..\..\include\octree\octree_gp.hpp">
       <Filter>octree</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\include\data\test_data.hpp">
+      <Filter>data</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\common\common.hpp">
+      <Filter>common</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\data\training_data.hpp">
+      <Filter>data</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\octree\octree_container.hpp">
+      <Filter>octree</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\util\data_types.hpp">
+      <Filter>util</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\util\util.hpp">
+      <Filter>util</Filter>
+    </ClInclude>
     <ClInclude Include="..\..\include\bcm\bcm.hpp">
       <Filter>bcm</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\include\util\utility.hpp">
-      <Filter>util</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\include\data\test_data.hpp">
-      <Filter>data</Filter>
+    <ClInclude Include="..\..\include\plsc\plsc.hpp">
+      <Filter>plsc</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

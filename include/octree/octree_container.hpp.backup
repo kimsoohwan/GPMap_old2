@@ -1,0 +1,75 @@
+#ifndef _OCTREE_LEAF_NODE_HPP_
+#define _OCTREE_LEAF_NODE_HPP_
+
+// STL
+#include <vector>
+
+// PCL
+#include <pcl/octree/octree.h>			// pcl::octree::OctreeContainerEmpty
+#include <pcl/octree/octree_impl.h>
+
+// Eigen
+#include <Eigen/Dense>
+
+// Boost
+#include "boost/tuple/tuple.hpp"
+
+// GPMap
+#include "util/data_types.hpp"					// Matrix, MatrixPtr
+
+
+namespace GPMap {
+
+/** @brief Observation Type */
+typedef enum ObservationType
+{
+	NO_OBSERVATION = -1,
+	HIT_POINT,
+	EMPTY_POINT,
+	SURFACE_NORMAL,
+	NUM_OBSERVATION_TYPES
+} ObservationType;
+
+/** @brief Data type in GPMap */
+typedef boost::tuple<ObservationType, int>	GPMapDataT;
+
+/** @brief Leaf node type */
+class GPMapLeafT : public pcl::octree::OctreeContainerEmpty<GPMapDataT>
+{
+public:
+	/** @brief Reset leaf node. Clear DataT vector.*/
+	void reset()
+	{
+		for(int i = 0; i < NUM_OBSERVATION_TYPES; i++)
+			m_pointCloudIndexList[i].clear();
+	}
+
+	/** \brief Pushes a DataT element to internal DataT vector.
+	  * \param[in] data_arg reference to DataT element to be stored within leaf node.
+	  */
+	void setData(const GPMapDataT &data)
+	{
+		// if the observation type is nothing, just create the node
+		if(data.get<0>() == NO_OBSERVATION) return;
+
+		// add to the int vector
+		m_pointCloudIndexList[data.get<0>()].push_back(data.get<1>());
+	}
+
+	//inline void update(const pcl::PointCloud<PointT> &cloud)
+	//{
+	//	//update(cloud, leafDataTVector_);
+	//}
+
+	//void update(const pcl::PointCloud<PointT> &cloud, const std::vector<int> &indices)
+	//{
+	//	//std::cout << indices.size() << ", ";
+	//}
+
+protected:
+	std::vector<int> m_pointCloudIndexList[NUM_OBSERVATION_TYPES];
+};
+
+}
+
+#endif

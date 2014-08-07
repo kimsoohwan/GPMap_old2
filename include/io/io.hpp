@@ -14,11 +14,11 @@
 #include <pcl/point_cloud.h>		// pcl::PointCloud
 #include <pcl/common/common.h>	// pcl::getMinMax3D
 #include <pcl/filters/filter.h>	// pcl::removeNaNFromPointCloud
-#include <pcl/io/pcd_io.h>			// pcl::io::loadPCDFile
-#include <pcl/io/ply_io.h>			// pcl::io::loadPLYFile
+#include <pcl/io/pcd_io.h>			// pcl::io::loadPCDFile, savePCDFile
+#include <pcl/io/ply_io.h>			// pcl::io::loadPLYFile, savePLYFile
 
 // GPMap
-#include "util/utility.hpp"		// PointXYZVector
+#include "util/data_types.hpp"		// PointXYZVector
 
 namespace GPMap {
 
@@ -81,13 +81,13 @@ void savePointCloud(const std::string												&strFilePath,
 
 	// save the file based on the file extension
 	const std::string fileExtension(p.extension().string());
-	if(fileExtension.compare(".pcd") == 0)		savePCDFile<PointT>(strFilePath.c_str(), *pCloud, fBinary);
-	if(fileExtension.compare(".ply") == 0)		savePLYFile<PointT>(strFilePath.c_str(), *pCloud, fBinary);
+	if(fileExtension.compare(".pcd") == 0)		pcl::io::savePCDFile<PointT>(strFilePath.c_str(), *pCloud, fBinary);
+	if(fileExtension.compare(".ply") == 0)		pcl::io::savePLYFile<PointT>(strFilePath.c_str(), *pCloud, fBinary);
 }
 
 template <typename PointT>
 void loadPointClouds(std::vector<typename pcl::PointCloud<PointT>::Ptr>		&pPointClouds,
-						   const std::vector<std::string>								&strFileNames, 
+						   const StringList													&strFileNames, 
 						   const std::string													&strPrefix = std::string(),
 						   const std::string													&strSuffix = std::string())
 {
@@ -105,7 +105,7 @@ void loadPointClouds(std::vector<typename pcl::PointCloud<PointT>::Ptr>		&pPoint
 
 template <typename PointT>
 void savePointClouds(const std::vector<typename pcl::PointCloud<PointT>::Ptr>		&pPointClouds,
-						   const std::vector<std::string>										&strFileNames, 
+						   const StringList															&strFileNames, 
 						   const std::string															&strPrefix = std::string(),
 						   const std::string															&strSuffix = std::string(),				 
 						   const bool																	fBinary = true)
@@ -120,13 +120,13 @@ void savePointClouds(const std::vector<typename pcl::PointCloud<PointT>::Ptr>		&
 }
 
 
-void loadSensorPositions(PointXYZVector							&sensorPositions, 
-								 const std::vector<std::string>		&strFileNames, 
-								 const std::string						&strPrefix = std::string(),
-								 const std::string						&strSuffix = std::string())
+void loadSensorPositionList(PointXYZVector		&sensorPositionList, 
+									 const StringList		&strFileNames, 
+									 const std::string	&strPrefix = std::string(),
+									 const std::string	&strSuffix = std::string())
 {
 	// resize
-	sensorPositions.resize(strFileNames.size());
+	sensorPositionList.resize(strFileNames.size());
 
 	// for each file name
 	for(size_t i = 0; i < strFileNames.size(); i++)
@@ -136,45 +136,8 @@ void loadSensorPositions(PointXYZVector							&sensorPositions,
 
 		// open
 		std::ifstream fin(strFileName);
-		fin >> sensorPositions[i].x >> sensorPositions[i].y >> sensorPositions[i].z;
+		fin >> sensorPositionList[i].x >> sensorPositionList[i].y >> sensorPositionList[i].z;
 	}
-}
-
-template <typename PointT>
-void getMinMax3DFromPointClouds(const std::vector<typename pcl::PointCloud<PointT>::Ptr>		&pPointClouds,
-										  pcl::PointXYZ &min_pt, pcl::PointXYZ &max_pt)
-{
-	PointT min_pt_temp, max_pt_temp;
-
-	// for each point cloud
-	for(size_t i = 0; i < pPointClouds.size(); i++)
-	{
-		// get min max
-		pcl::getMinMax3D(*pPointClouds[i], min_pt_temp, max_pt_temp);
-
-		// compare
-		if(i == 0)
-		{
-			min_pt.x = min_pt_temp.x;
-			min_pt.y = min_pt_temp.y;
-			min_pt.z = min_pt_temp.z;
-
-			max_pt.x = max_pt_temp.x;
-			max_pt.y = max_pt_temp.y;
-			max_pt.z = max_pt_temp.z;
-		}
-		else
-		{
-			min_pt.x = min(min_pt.x, min_pt_temp.x);
-			min_pt.y = min(min_pt.y, min_pt_temp.y);
-			min_pt.z = min(min_pt.z, min_pt_temp.z);
-
-			max_pt.x = max(max_pt.x, max_pt_temp.x);
-			max_pt.y = max(max_pt.y, max_pt_temp.y);
-			max_pt.z = max(max_pt.z, max_pt_temp.z);
-		}
-	}
-
 }
 
 }

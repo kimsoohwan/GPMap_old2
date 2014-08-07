@@ -26,6 +26,7 @@ const size_t MAX_DISPLAYED_CUBES(1500000);
 //=============================
 //typedef pcl::octree::OctreePointCloud<pcl::PointNormal> OctreeT;
 typedef OctreePointCloud_GP<pcl::PointNormal> OctreeT;
+//typedef OctreePointCloud_GP OctreeT;
 
 template <typename PointT>
 class OctreeViewer

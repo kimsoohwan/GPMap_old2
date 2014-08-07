@@ -42,13 +42,14 @@ void addPointCloudNormals<pcl::PointNormal>(pcl::visualization::PCLVisualizer			
 }
 
 template <typename PointT>
-void show(const std::vector<typename pcl::PointCloud<PointT>::Ptr>	&pPointClouds,
+void show(const std::string														&strWindowName,
+			 const std::vector<typename pcl::PointCloud<PointT>::Ptr>	&pPointClouds,
 			 const double																scale = 0.1,
 			 const bool																	fDownSample = false,
 			 const double																leafSize = 1.0)
 {
 	// visualizer
-	pcl::visualization::PCLVisualizer viewer("3D Viewer");
+	pcl::visualization::PCLVisualizer viewer(strWindowName);
 	//viewer.setBackgroundColor(1, 1, 1);
 	viewer.setBackgroundColor(0, 0, 0);
 	viewer.addCoordinateSystem(1.0);

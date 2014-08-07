@@ -1,22 +1,33 @@
 #ifndef _GPMAP_TEST_DATA_HPP_
 #define _GPMAP_TEST_DATA_HPP_
 
-// OpenGP
-#include <GP.h>
+// GPMap
+#include "util/data_types.hpp" // Matrix, MatrixPtr, MatrixConstPtr
 
 namespace GPMap {
 
-TYPE_DEFINE_MATRIX(float);
+inline size_t xyz2idx(const size_t nGrids, const size_t ix, const size_t iy, const size_t iz)
+{
+	return ix*nGrids*nGrids + iy*nGrids + iz;
+}
+
+inline void idx2xyz(const size_t nGrids, size_t index, size_t &ix, size_t &iy, size_t &iz)
+{
+	ix = static_cast<size_t>(static_cast<double>(index)/static_cast<double>(nGrids*nGrids));
+	index -= ix*nGrids*nGrids;
+	iy = static_cast<size_t>(static_cast<double>(index)/static_cast<double>(nGrids));
+	iz = index - iy*nGrids;
+}
 
 void meshGrid(const Eigen::Vector3f		&min,
-				  const unsigned int			nGrids,
+				  const size_t					nGrids,
 				  const float					gridSize,
 				  MatrixPtr						&pXs)
 {
 	assert(nGrids > 0);
 
 	// matrix size
-	if(pXs && pXs->rows() != nGrids*nGrids*nGrids && pXs->cols() != 3)
+	if(!pXs || pXs->rows() != nGrids*nGrids*nGrids || pXs->cols() != 3)
 		pXs.reset(new Matrix(nGrids*nGrids*nGrids, 3));
 
 	// generate mesh grid in the order of x, y, z

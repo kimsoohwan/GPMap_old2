@@ -1,5 +1,5 @@
-#ifndef _OCTREE_GAUSSIAN_PROCESS_HPP_
-#define _OCTREE_GAUSSIAN_PROCESS_HPP_
+#ifndef _OCTREE_GPMAP_HPP_
+#define _OCTREE_GPMAP_HPP_
 
 // STL
 #include <cmath>			// floor, ceil
@@ -13,8 +13,8 @@
 // Eigen
 #include <Eigen/Dense>
 
-// Boost
-#include "boost/tuple/tuple.hpp"
+//// Boost
+//#include "boost/tuple/tuple.hpp"
 
 // OpenGP
 #include "GP.h"
@@ -31,43 +31,70 @@ template<typename PointT,
 			typename LeafT		= LeafNode,
 			typename BranchT	= pcl::octree::OctreeContainerEmpty<int>,
 			typename OctreeT	= pcl::octree::OctreeBase<int, LeafT, BranchT> >
-class OctreePointCloud_GP : public pcl::octree::OctreePointCloud<PointT, LeafT, BranchT, OctreeT>
+class OctreeGPMap : public pcl::octree::OctreePointCloud<PointT, LeafT, BranchT, OctreeT>
 {
 public:
 	public:
 	/** @brief Constructor
 	*  @param resolution: octree resolution at lowest octree level
     */
-   OctreePointCloud_GP(const double blockSize, const size_t nCellsPerBlock, const pcl::PointXYZ &min_pt, const pcl::PointXYZ &max_pt)
+   OctreeGPMap(const double				blockSize, 
+					const size_t				nCellsPerAxis, 
+					const bool					fVarianceVector,
+					const bool					fDuplicatePointIndexToNeighboringVoxels)
 		: pcl::octree::OctreePointCloud<PointT, LeafT, BranchT, OctreeT>(blockSize),
-		  m_blockSize(blockSize),
-		  m_cellSize(blockSize/nCellsPerBlock),
-		  m_nCellsPerBlock(nCellsPerBlock),
-		  m_fDuplicatePointIndexToNeighboringVoxels(true),
-		  m_pXs(new Matrix(nCellsPerBlock*nCellsPerBlock*nCellsPerBlock, 3))
+		  m_blockSize(resolution_),
+		  m_cellSize(blockSize/static_cast<double>(nCellsPerAxis)),
+		  m_nCellsPerAxis(nCellsPerAxis),
+		  m_nCellsPerBlock(nCellsPerAxis*nCellsPerAxis*nCellsPerAxis),
+		  m_fVarianceVector(fVarianceVector),
+		  m_fDuplicatePointIndexToNeighboringVoxels(fDuplicatePointIndexToNeighboringVoxels),
+		  m_pXs(new Matrix(m_nCellsPerBlock, 3))
    {
-		assert(nCellsPerBlock > 0);
-
-		// bounding box
-		double minX, minY, minZ, maxX, maxY, maxZ;
-		minX = floor(static_cast<double>(min_pt.x)/blockSize - 1.f)*blockSize;
-		minY = floor(static_cast<double>(min_pt.y)/blockSize - 1.f)*blockSize;
-		minZ = floor(static_cast<double>(min_pt.z)/blockSize - 1.f)*blockSize;
-		maxX = ceil (static_cast<double>(max_pt.x)/blockSize + 1.f)*blockSize;
-		maxY = ceil (static_cast<double>(max_pt.y)/blockSize + 1.f)*blockSize;
-		maxZ = ceil (static_cast<double>(max_pt.z)/blockSize + 1.f)*blockSize;
-		defineBoundingBox(minX, minY, minZ, maxX, maxY, maxZ);
+		assert(nCellsPerAxis > 0);
 
 		// set the test positions at (0, 0, 0)
 		meshGrid(Eigen::Vector3f(0.f, 0.f, 0.f), 
-					nCellsPerBlock, 
-					static_cast<float>(blockSize) / static_cast<float>(nCellsPerBlock),
+					m_nCellsPerAxis, 
+					static_cast<float>(blockSize) / static_cast<float>(m_nCellsPerAxis),
 					m_pXs);
    }
 
 	/** @brief Empty class constructor */
-	virtual ~OctreePointCloud_GP()
+	virtual ~OctreeGPMap()
 	{
+	}
+
+	/** @brief Define bounding box for octree
+	* @note Bounding box cannot be changed once the octree contains elements.
+	* @param[in] min_pt lower bounding box corner point
+	* @param[in] max_pt upper bounding box corner point
+	*/
+	void defineBoundingBox(const pcl::PointXYZ &min_pt, const pcl::PointXYZ &max_pt)
+	{
+		defineBoundingBox(min_pt.x, min_pt.y, min_pt.z, 
+								max_pt.x, max_pt.y, max_pt.z);
+	}
+
+	/** @brief Define bounding box for octree
+	* @note Bounding box cannot be changed once the octree contains elements.
+	* @param[in] minX X coordinate of lower bounding box corner
+	* @param[in] minY Y coordinate of lower bounding box corner
+	* @param[in] minZ Z coordinate of lower bounding box corner
+	* @param[in] maxX X coordinate of upper bounding box corner
+	* @param[in] maxY Y coordinate of upper bounding box corner
+	* @param[in] maxZ Z coordinate of upper bounding box corner
+	*/
+	void defineBoundingBox(double minX, double minY, double minZ,
+								  double maxX, double maxY, double maxZ)
+	{
+		minX = floor(static_cast<double>(minX)/m_blockSize - 1.f)*m_blockSize;
+		minY = floor(static_cast<double>(minY)/m_blockSize - 1.f)*m_blockSize;
+		minZ = floor(static_cast<double>(minZ)/m_blockSize - 1.f)*m_blockSize;
+		maxX = ceil (static_cast<double>(maxX)/m_blockSize + 1.f)*m_blockSize;
+		maxY = ceil (static_cast<double>(maxY)/m_blockSize + 1.f)*m_blockSize;
+		maxZ = ceil (static_cast<double>(maxZ)/m_blockSize + 1.f)*m_blockSize;
+		defineBoundingBox(minX, minY, minZ, maxX, maxY, maxZ);
 	}
 
    /** @brief Provide a pointer to the input data set.
@@ -78,14 +105,20 @@ public:
      * @param[in] pIndices the point indices subset that is to be used from \a cloud - if 0 the whole point cloud is used
     */
    void setInputCloud(const PointCloudConstPtr	&pCloud,
+							 const float					gap = 0.f,
+							 const pcl::PointXYZ			&sensorPosition = pcl::PointXYZ(),
 							 const IndicesConstPtr		&pIndices = IndicesConstPtr())
    {
-      //assert(this->leafCount_==0);
+		//assert(this->leafCount_==0);
 
 		// set the input cloud
 		input_	= pCloud;
 		indices_	= pIndices;
-   }
+
+		// gap and sensor position for generating empty points
+		m_gap = gap;
+		m_sensorPosition = sensorPosition;
+	}
 
 	/** @brief Add points from input point cloud to octree.
 	  * @details	Refer to pcl::octree::OctreePointCloud<PointT, LeafT, BranchT, OctreeT>::addPointsFromInputCloud()
@@ -144,7 +177,7 @@ public:
 	}
 
 	/** @brief		Update the GPMap with new observations */
-	void update(const float gap = 0.f, const pcl::PointXYZ &sensorPosition = pcl::PointXYZ())
+	void update()
 	{
 		// if a point index is duplicated to 
 		if(m_fDuplicatePointIndexToNeighboringVoxels)
@@ -153,8 +186,8 @@ public:
 			LeafNodeIterator iter(*this);
 
 			// for each leaf node
-			Eigen::Vector3f &min_pt;
-			std::vector<int> indexVector;
+			Eigen::Vector3f min_pt;
+			Indices indexVector;
 			while(*++iter)
 			{
 				// key
@@ -164,14 +197,15 @@ public:
 				genVoxelMinPoint(key, min_pt);
 
 				// collect indices
-				indexVector.clear()
+				indexVector.clear();
 				getData(key, indexVector);
+				assert(indexVector.size() > 0);
 
 				// leaf node
 				LeafNode *pLeafNode = static_cast<LeafNode *>(iter.getCurrentOctreeNode());
 
 				// predict
-				predict(indexVector, sensorPosition, gap, min_pt, pLeafNode);
+				predict(indexVector, min_pt, pLeafNode);
 			}
 		}
 		else
@@ -183,7 +217,7 @@ public:
 			LeafNodeIterator iter(*this);
 
 			// for each leaf node
-			Eigen::Vector3f &min_pt;
+			Eigen::Vector3f min_pt;
 			std::vector<int> indexVector;
 			while(*++iter)
 			{
@@ -201,32 +235,33 @@ public:
 						{
 							getData(pcl::octree::OctreeKey(key.x+deltaX, key.y+deltaY, key.z+deltaZ), indexVector);
 						}
+				assert(indexVector.size() > 0);
 
 				// leaf node
 				LeafNode *pLeafNode = static_cast<LeafNode *>(iter.getCurrentOctreeNode());
 
 				// predict
-				predict(indexVector, sensorPosition, gap, min_pt, pLeafNode);
+				predict(indexVector, min_pt, pLeafNode);
 			}
 		}
 	}
 
 	inline bool isCellNotOccupied(const VectorPtr &pMean, const MatrixPtr &pVariance, const size_t ix, const size_t iy, const size_t iz, const float threshold) const
 	{
-		const size_t idx(xyz2idx(m_nCellsPerBlock, ix, iy, iz));
+		const size_t idx(xyz2idx(m_nCellsPerAxis, ix, iy, iz));
 		return PLSC(pMean(idx), pVariance(idx, 0)) < threshold;
 	}
 
 	inline bool isNotIsolatedCell(const VectorPtr &pMean, const MatrixPtr &pVariance, const size_t ix, const size_t iy, const size_t iz, const float threshold, const bool fRemoveIsolatedCells, size_t &idx) const
 	{
 		// current index
-		idx = xyz2idx(m_nCellsPerBlock, ix, iy, iz);
+		idx = xyz2idx(m_nCellsPerAxis, ix, iy, iz);
 		
 		// check neighboring cells
 		if(fRemoveIsolatedCells)
 		{
 			// last index
-			const size_t lastIdx(m_nCellsPerBlock-1);
+			const size_t lastIdx(m_nCellsPerAxis-1);
 
 			if(ix == 0 || iy == 0 || iz == 0 ||
 				ix >= lastIdx || iy >= lastIdx || iz >= lastIdx) return true;
@@ -272,15 +307,16 @@ public:
 			pLeafNode->get(pMean, pVariance);
 			if(pVariance->cols() != 1)
 			{
-				pVariance.reset(new Matrix(pVariance->rows(), 1));
-				pVariance->noalias() = pVariance->diagonal();
+				MatrixPtr pTempVariance(new Matrix(pVariance->rows(), 1));
+				pTempVariance->noalias() = pVariance->diagonal();
+				pVariance.reset(pTempVariance);
 			}
 
 			// check if each cell is occupied
 			size_t i;
-			for(size_t ix = 0; ix < m_nCellsPerBlock; ix++)
-				for(size_t iy = 0; iy < m_nCellsPerBlock; iy++)
-					for(size_t iz = 0; iz < m_nCellsPerBlock; iz++)
+			for(size_t ix = 0; ix < m_nCellsPerAxis; ix++)
+				for(size_t iy = 0; iy < m_nCellsPerAxis; iy++)
+					for(size_t iz = 0; iz < m_nCellsPerAxis; iz++)
 						if(isNotIsolatedCell(pMean, pVariance, ix, iy, iz, threshold, i, fRemoveIsolatedCells))
 							cellCenterPointXYZVector.push_back(pcl::PointXYZ(m_pXs(i, 0) + min_pt.x, 
 																							 m_pXs(i, 1) + min_pt.y,
@@ -324,6 +360,11 @@ public:
 		}
 
 		return n;
+	}
+
+	double getCellSize() const
+	{
+		return m_cellSize;
 	}
 
 protected:
@@ -381,7 +422,15 @@ protected:
 			for(int deltaX = -1; deltaX <= 1; deltaX++)
 				for(int deltaY = -1; deltaY <= 1; deltaY++)
 					for(int deltaZ = -1; deltaZ <= 1; deltaZ++)
-						this->addData(pcl::octree::OctreeKey(key.x+deltaX, key.y+deltaY, key.z+deltaZ), pointIdx);
+					{
+						assert(static_cast<int>(key.x) + deltaX >= 0);
+						assert(static_cast<int>(key.y) + deltaY >= 0);
+						assert(static_cast<int>(key.z) + deltaZ >= 0);
+						this->addData(pcl::octree::OctreeKey(static_cast<unsigned int>(key.x+deltaX), 
+																		 static_cast<unsigned int>(key.y+deltaY),
+																		 static_cast<unsigned int>(key.z+deltaZ)),
+																		 pointIdx);
+					}
 		}
 		else
 			this->addData(key, pointIdx);
@@ -404,8 +453,20 @@ protected:
 				for(int deltaY = -1; deltaY <= 1; deltaY++)
 					for(int deltaZ = -1; deltaZ <= 1; deltaZ++)
 					{
+#ifdef _DEBUG
+						Eigen::Vector3f min_pt, max_pt;
+						genVoxelBounds(static_cast<unsigned int>(key.x+deltaX), 
+											static_cast<unsigned int>(key.y+deltaY),
+											static_cast<unsigned int>(key.z+deltaZ)), 
+											min_pt, max_pt);
+						assert(min_pt.x() >= minX_ && min_pt.y() >= minY_ && min_pt.z() >= minZ_);
+						assert(max_pt.x() <= maxX_ && max_pt.y() <= maxY_ && max_pt.z() <= maxZ_);
+#endif
 						if(deltaX == 0 && deltaY == 0 && deltaZ == 0) continue;
-						addData(pcl::octree::OctreeKey(key.x+deltaX, key.y+deltaY, key.z+deltaZ), -1);
+						addData(pcl::octree::OctreeKey(static_cast<unsigned int>(key.x+deltaX), 
+																 static_cast<unsigned int>(key.y+deltaY),
+																 static_cast<unsigned int>(key.z+deltaZ)),
+																 -1);
 					}
 		}
 	}
@@ -425,12 +486,12 @@ protected:
 	bool getData(const pcl::octree::OctreeKey &key, std::vector<int> &indexVector) const
 	{
 		// leaf node corresponding the octree key
-		LeafNode* pLeaf = findLeaf(key);
+		LeafNode* pLeafNode = findLeaf(key);
 
 		// if the leaf node exists, add point indices to the vector
-		if(pLeaf)
+		if(pLeafNode)
 		{
-			pLeaf->getData(indexVector);
+			pLeafNode->getData(indexVector);
 			return true;
 		}
 		return false;
@@ -555,26 +616,25 @@ protected:
 
 	/** @details	The leaf node has only index vector, 
 	  *				no information about the point cloud or min/max boundary of the voxel.
-	  *				Thus, prediction is done in OctreePointCloud_GP not in LeafNode.
+	  *				Thus, prediction is done in OctreeGPMap not in LeafNode.
 	  *				But the result will be dangled to LeafNode for further BCM update.
 	  */
 	void predict(const Indices				&indexVector, 
-					 const pcl::PointXYZ		&sensorPosition, 
-					 const float				gap, 
 					 Eigen::Vector3f			&min_pt,
 					 LeafNode					*pLeafNode)
 	{
 		// training data
-		DerivativeTrainingData<float>	derivativeTrainingData;
+		DerivativeTrainingData derivativeTrainingData;
 		MatrixPtr pX, pXd; VectorPtr pYYd;
-		generateTraingData(input_, indexVector, sensorPosition, gap, pX, pXd, pYYd);
+		generateTraingData(input_, indexVector, m_sensorPosition, m_gap, pX, pXd, pYYd);
 		derivativeTrainingData.set(pX, pXd, pYYd);
 
 		// test data
-		TestData<float> testData;
-		MatrixPtr pXs(new Matrix(nCellsPerBlock*nCellsPerBlock*nCellsPerBlock, 3));
-		Matrix minValue(1, 3)
-		pXs->noalias() = (*m_pXs) + Eigen::Matrix<float, 1, 3>(min_pt.x, min_pt.y, min_pt.z).replicate(nCellsPerBlock*nCellsPerBlock*nCellsPerBlock, 1);
+		TestData testData;
+		MatrixPtr pXs(new Matrix(m_nCellsPerBlock, 3));
+		Matrix minValue(1, 3); 
+		minValue << min_pt.x(), min_pt.y(), min_pt.z();
+		pXs->noalias() = (*m_pXs) + minValue.replicate(m_nCellsPerBlock, 1);
 		testData.set(pXs);
 
 		// hyperparameters
@@ -589,14 +649,16 @@ protected:
 		logHyp.lik(0) = log(sigma_n);
 		logHyp.lik(1) = log(sigma_nd);
 
+#if EIGEN_VERSION_AT_LEAST(3,2,0)
 		// train
 		GPType::train<GP::BOBYQA, GP::NoStopping>(logHyp, derivativeTrainingData, 10000);
 
 		// predict
-		const bool fVarianceVector = true;
-		//const int perBatch = 5000;
-		const int perBatch = pXs->rows();
-		GPType::predict(logHyp, derivativeTrainingData, testData, fVarianceVector, perBatch);
+		GPType::predict(logHyp, derivativeTrainingData, testData, m_fVarianceVector); // 5000
+		//GPType::predict(logHyp, derivativeTrainingData, testData, m_fVarianceVector, pXs->rows());
+#else
+	#error
+#endif
 
 		// update
 		pLeafNode->update(testData.pMu(), testData.pSigma());
@@ -607,15 +669,22 @@ protected:
 	  * @details	If it is duplicated, prediction will be easy without considering neighboring voxels,
 	  *				but the total memory size for indices will be 27 times bigger. */
 	const bool		m_fDuplicatePointIndexToNeighboringVoxels;
+	const bool		m_fVarianceVector;
 
 	/** @brief Size of each block (voxel) */
-	const double	m_blockSize;
+	double			&m_blockSize;
+	const double	m_cellSize;
 	
 	/** @brief		Number of cells per a block
 	  * @details	Note that each block(voxel) has a number of cells.
 	  *				The block size corresponds to the resolution of voxels in pcl::octree::OctreePointCloud
 	  */
+	const size_t	m_nCellsPerAxis;
 	const size_t	m_nCellsPerBlock;
+
+	/** @brief For generating empty points */
+	float				m_gap;
+	pcl::PointXYZ	m_sensorPosition;
 
 	/** @brief		Test inputs of a block whose minimum point is (0, 0, 0) */
 	MatrixPtr	m_pXs;

@@ -48,7 +48,7 @@ genEmptyPointCloud(const float														gap,
 	// if the indices are specified,
 	if(pIndices)
 	{
-		for(std::vector<int>::const_iterator iter = pIndices->begin(); iter != pIndices->end(); ++iter)
+		for(Indices::const_iterator iter = pIndices->begin(); iter != pIndices->end(); ++iter)
 		{
 			// assert index range
 			assert( (*iter >= 0) && (*iter < static_cast<int>(pHitPointCloud->points.size())));
@@ -112,7 +112,7 @@ void combinePointCloudList(const PointXYZCloudPtrList		&pointCloudList1,
 /** @brief Generate training data from a point cloud
   * @Todo	Optimization or using getMatrixXfMap()
   */
-void generateTraingData(const PointNormalCloudConstPtr		&pSurfaceNormalCloud,
+void generateTraingData(const PointNormalCloudConstPtr		&pPointNormalCloud,
 								const Indices								&indices,
 								const pcl::PointXYZ						&sensorPosition,
 								const float									gap,
@@ -141,25 +141,25 @@ void generateTraingData(const PointNormalCloudConstPtr		&pSurfaceNormalCloud,
 	if(fCreateEmptyPoint)
 	{
 		pX.reset(new Matrix(2*N, 3));				// hit/empty points
-		pYYd.reset(new Vector(2*N + Nd*D)));	// hit/empty points, surface normals
+		pYYd.reset(new Vector(2*N + Nd*D));		// hit/empty points, surface normals
 	}
 	else
 	{
 		pX.reset(new Matrix(N, 3));				// hit points
-		pYYd.reset(new Vector(N + Nd*D)));		// hit points, surface normals
+		pYYd.reset(new Vector(N + Nd*D));		// hit points, surface normals
 	}
 	pXd.reset(new Matrix(N, 3));					// surface normals
 
 	// assignment
 	pcl::PointXYZ emptyPoint;
-	for(int i = 0, std::vector<int>::const_iterator iter = indices.begin(); iter != indices.end(); ++i, ++iter)
+	int i = 0;
+	for(Indices::const_iterator iter = indices.begin(); iter != indices.end(); ++iter)
 	{
 		// index
-		const int i(*iter);
-		assert(*iter >= 0 && *iter < N);
+		assert(*iter >= 0 && *iter < static_cast<int>(N));
 
 		// point normal
-		const pcl::PointNormal pointNormal(pSurfaceNormalCloud->points[*iter]);
+		const pcl::PointNormal pointNormal(pPointNormalCloud->points[*iter]);
 
 		// check finite
 		assert(pcl_isfinite(pointNormal.x) &&
@@ -168,7 +168,7 @@ void generateTraingData(const PointNormalCloudConstPtr		&pSurfaceNormalCloud,
 				 pcl_isfinite(pointNormal.normal_x) &&
 				 pcl_isfinite(pointNormal.normal_y) &&
 				 pcl_isfinite(pointNormal.normal_z) &&
-				 pPointNormals->points[i].curvature > 0);
+				 pointNormal.curvature > 0);
 
 		// hit point
 		(*pX)(i, 0)		= pointNormal.x;
@@ -202,6 +202,9 @@ void generateTraingData(const PointNormalCloudConstPtr		&pSurfaceNormalCloud,
 			(*pYYd)(N+Nd+i)		= pointNormal.normal_y;
 			(*pYYd)(N+2*Nd+i)		= pointNormal.normal_z;
 		}
+
+		// next index
+		i++;
 	}
 }
 

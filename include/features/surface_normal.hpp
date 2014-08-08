@@ -10,12 +10,16 @@
 #include <pcl/point_cloud.h>					// pcl::PointCloud
 #include <pcl/point_cloud.h>					// pcl::PointCloud
 #include <pcl/kdtree/kdtree_flann.h>		// pcl::search::KdTree
-#include <pcl/features/normal_3d.h>			// pcl::NormalEstimation
+#ifdef _OPENMP
 #include <pcl/features/normal_3d_omp.h>	// pcl::NormalEstimationOMP
+#include <pcl/surface/mls_omp.h>				// pcl::MovingLeastSquaresOMP
+#else
+#include <pcl/features/normal_3d.h>			// pcl::NormalEstimation
 #include <pcl/surface/mls.h>					// pcl::MovingLeastSquares
+#endif
 
 // GPMap
-#include "util/data_types.hpp"					// PointXYZVector
+#include "util/data_types.hpp"				// PointXYZVector
 #include "remove_NAN.hpp"
 
 namespace GPMap {
@@ -30,9 +34,15 @@ estimateSurfaceNormals(const pcl::PointCloud<pcl::PointXYZ>::Ptr		&pPointCloud,
 {
 	// surface normal vectors
 	// Create the normal estimation class, and pass the input dataset to it
-#ifdef OPENMP
+#ifdef _OPENMP
+	// Warning
+	// PCL 1.6.0\3rdParty\Boost\include\boost/bind/bind.hpp(586): 
+	// warning C4244: 'argument' : conversion from 'double' to 'int', possible loss of data
 	pcl::NormalEstimationOMP<pcl::PointXYZ, pcl::Normal> ne;
 #else
+	// Warning
+	// PCL 1.6.0\3rdParty\Boost\include\boost/bind/bind.hpp(586): 
+	// warning C4244: 'argument' : conversion from 'double' to 'int', possible loss of data
 	pcl::NormalEstimation<pcl::PointXYZ, pcl::Normal> ne;
 #endif
 
@@ -96,7 +106,7 @@ smoothAndNormalEstimation(const pcl::PointCloud<pcl::PointXYZ>::ConstPtr	&cloud,
 	pcl::search::KdTree<pcl::PointXYZ>::Ptr kdtree(new pcl::search::KdTree<pcl::PointXYZ>());
 
 	// Init object (second point type is for the normals, even if unused)
-#ifdef OPENMP
+#ifdef _OPENMP
 	pcl::MovingLeastSquaresOMP<pcl::PointXYZ, pcl::PointNormal> mls;
 #else
 	pcl::MovingLeastSquares<pcl::PointXYZ, pcl::PointNormal> mls;

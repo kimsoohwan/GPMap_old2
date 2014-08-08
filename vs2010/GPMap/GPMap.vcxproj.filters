@@ -1,82 +1,85 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <Filter Include="io">
-      <UniqueIdentifier>{56143e13-4309-452c-995d-efb95e89ca52}</UniqueIdentifier>
+    <Filter Include="src">
+      <UniqueIdentifier>{b03998a4-8394-409f-8cb5-90c5e0973aed}</UniqueIdentifier>
     </Filter>
-    <Filter Include="filter">
-      <UniqueIdentifier>{b03e69d6-bc2a-4926-8f86-cf3c95d4c7fd}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="octree">
-      <UniqueIdentifier>{bcf54337-0951-4b36-868f-95e0aa58a9c0}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="visualization">
-      <UniqueIdentifier>{82cfb4ab-8010-404b-86f7-7e8535f2496b}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="features">
-      <UniqueIdentifier>{68af50d5-306a-4e67-a683-afc9dec685a4}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="util">
-      <UniqueIdentifier>{59f3a57f-47ab-4959-bc99-9642a11add36}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="data">
-      <UniqueIdentifier>{c0cb9180-03a5-40a0-9ea6-3a3ee0953ef0}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="common">
-      <UniqueIdentifier>{86c49b1f-1490-498d-b183-7e631fef2564}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="bcm">
+    <Filter Include="src\bcm">
       <UniqueIdentifier>{7b505d8c-4249-4344-93ba-e9505fd11727}</UniqueIdentifier>
     </Filter>
-    <Filter Include="plsc">
+    <Filter Include="src\common">
+      <UniqueIdentifier>{86c49b1f-1490-498d-b183-7e631fef2564}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\data">
+      <UniqueIdentifier>{c0cb9180-03a5-40a0-9ea6-3a3ee0953ef0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\features">
+      <UniqueIdentifier>{68af50d5-306a-4e67-a683-afc9dec685a4}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\io">
+      <UniqueIdentifier>{56143e13-4309-452c-995d-efb95e89ca52}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\filter">
+      <UniqueIdentifier>{b03e69d6-bc2a-4926-8f86-cf3c95d4c7fd}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\octree">
+      <UniqueIdentifier>{bcf54337-0951-4b36-868f-95e0aa58a9c0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\plsc">
       <UniqueIdentifier>{b7d6365e-5ac5-4a7b-9611-b5efa6daa08f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\util">
+      <UniqueIdentifier>{59f3a57f-47ab-4959-bc99-9642a11add36}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\visualization">
+      <UniqueIdentifier>{82cfb4ab-8010-404b-86f7-7e8535f2496b}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\include\io\io.hpp">
-      <Filter>io</Filter>
+      <Filter>src\io</Filter>
     </ClInclude>
     <ClInclude Include="..\..\include\filter\filters.hpp">
-      <Filter>filter</Filter>
+      <Filter>src\filter</Filter>
     </ClInclude>
     <ClInclude Include="..\..\include\octree\octree_viewer.hpp">
-      <Filter>octree</Filter>
+      <Filter>src\octree</Filter>
     </ClInclude>
     <ClInclude Include="..\..\include\visualization\display.hpp">
-      <Filter>visualization</Filter>
+      <Filter>src\visualization</Filter>
     </ClInclude>
     <ClInclude Include="..\..\include\features\remove_NAN.hpp">
-      <Filter>features</Filter>
+      <Filter>src\features</Filter>
     </ClInclude>
     <ClInclude Include="..\..\include\features\surface_normal.hpp">
-      <Filter>features</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\include\octree\octree_gp.hpp">
-      <Filter>octree</Filter>
+      <Filter>src\features</Filter>
     </ClInclude>
     <ClInclude Include="..\..\include\data\test_data.hpp">
-      <Filter>data</Filter>
+      <Filter>src\data</Filter>
     </ClInclude>
     <ClInclude Include="..\..\include\common\common.hpp">
-      <Filter>common</Filter>
+      <Filter>src\common</Filter>
     </ClInclude>
     <ClInclude Include="..\..\include\data\training_data.hpp">
-      <Filter>data</Filter>
+      <Filter>src\data</Filter>
     </ClInclude>
     <ClInclude Include="..\..\include\octree\octree_container.hpp">
-      <Filter>octree</Filter>
+      <Filter>src\octree</Filter>
     </ClInclude>
     <ClInclude Include="..\..\include\util\data_types.hpp">
-      <Filter>util</Filter>
+      <Filter>src\util</Filter>
     </ClInclude>
     <ClInclude Include="..\..\include\util\util.hpp">
-      <Filter>util</Filter>
+      <Filter>src\util</Filter>
     </ClInclude>
     <ClInclude Include="..\..\include\bcm\bcm.hpp">
-      <Filter>bcm</Filter>
+      <Filter>src\bcm</Filter>
     </ClInclude>
     <ClInclude Include="..\..\include\plsc\plsc.hpp">
-      <Filter>plsc</Filter>
+      <Filter>src\plsc</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\octree\octree_gpmap.hpp">
+      <Filter>src\octree</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

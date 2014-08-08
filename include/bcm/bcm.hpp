@@ -1,7 +1,7 @@
 #ifndef _BAYESIAN_COMMITTEE_MACHINE_HPP_
 #define _BAYESIAN_COMMITTEE_MACHINE_HPP_
 
-#include "utildata_types.hpp"
+#include "util/data_types.hpp"
 
 namespace GPMap {
 
@@ -9,19 +9,25 @@ namespace GPMap {
 class BCM
 {
 public:
+	// BCM(VectorPtr &pSumOfWeightedMeans, MatrixPtr &pSumOfInvCovs)
+	// BCM& operator=(const BCM &rhs)
+
 	bool get(VectorPtr &pMean, MatrixPtr &pCov) const
 	{
 		// check 
-		if(!m_pSumOfInvCovs || !m_pSumOfWeightedMeans) return;
+		if(!m_pSumOfInvCovs || !m_pSumOfWeightedMeans) return false;
 
 		// constant 
 		const bool fVarianceVector(m_pSumOfInvCovs->cols() == 1);
 
 		// memory allocation
-		if(!pMean || pMean->size() != m_pSumOfWeightedMeans->size())	pMean.reset(new Vector(m_pSumOfWeightedMeans->size()));
-		if(!pCov  || pCov->rows()  != m_pSumOfInvCovs->rows() || 
-						 pCov->cols()  != m_pSumOfInvCovs->cols())			pCov.reset(new Matrix(m_pSumOfInvCovs->rows(), m_pSumOfInvCovs->cols()));
-		
+		if(!pMean || pMean->size() != m_pSumOfWeightedMeans->size())	
+			pMean.reset(new Vector(m_pSumOfWeightedMeans->size()));
+
+		if(!pCov  || pCov->rows()  != m_pSumOfInvCovs->rows()
+					 || pCov->cols()  != m_pSumOfInvCovs->cols())			
+			pCov.reset(new Matrix(m_pSumOfInvCovs->rows(), m_pSumOfInvCovs->cols()));
+
 		// variance vector
 		if(fVarianceVector)
 		{
@@ -40,36 +46,45 @@ public:
 
 			// cholesky factor of the covariance matrix
 			CholeskyFactor L(*m_pSumOfInvCovs);
-			if(pL->info() != Eigen::ComputationInfo::Success)
+			if(L.info() != Eigen::/*ComputationInfo::*/Success)
 			{
 				GP::Exception e;
 				switch(L.info())
 				{
-					case Eigen::ComputationInfo::NumericalIssue :
+					case Eigen::/*ComputationInfo::*/NumericalIssue :
 					{
 						e = "NumericalIssue";
 						break;
 					}
-					case Eigen::ComputationInfo::NoConvergence :
+					case Eigen::/*ComputationInfo::*/NoConvergence :
 					{
 						e = "NoConvergence";
 						break;
 					}
-					case Eigen::ComputationInfo::InvalidInput :
+#if EIGEN_VERSION_AT_LEAST(3,2,0)
+					case Eigen::/*ComputationInfo::*/InvalidInput :
 					{
 						e = "InvalidInput";
 						break;
 					}
+#endif
 				}
 				throw e;
 			}
 
 			// Sigma
-			pCov->noalias() = L.solve(Matrix::Identity(m_pSumOfInvCovs->rows(), m_pSumOfInvCovs->rows()));
+#if EIGEN_VERSION_AT_LEAST(3,2,0)
+			pCov->noalias() = L.solve(Matrix::Identity(m_pSumOfInvCovs->rows(), m_pSumOfInvCovs->cols()));	// (LL')*inv(Cov) = I
+#else
+			(*pCov) = L.solve(Matrix::Identity(m_pSumOfInvCovs->rows(), m_pSumOfInvCovs->cols()));				// (LL')*inv(Cov) = I
+#endif
 
 			// mean
-			pMean->noalias() = L.solve(*m_pSumOfWeightedMeans);
-			//pMean->noalias() = L.matrixL().solve(*m_pSumOfWeightedMeans);
+#if EIGEN_VERSION_AT_LEAST(3,2,0)
+			pMean->noalias() = L.solve(*m_pSumOfWeightedMeans);	// (LL')*x = mean
+#else
+			(*pMean) = L.solve(*m_pSumOfWeightedMeans);				// (LL')*x = mean
+#endif
 		}
 
 		return true;
@@ -82,7 +97,7 @@ public:
 
 		// memory allocation
 		MatrixPtr pInvCov(new Matrix(pCov->rows(), pCov->cols()));	// inverted cov
-		VectorPtr pWeightedMean(new VectorPtr(pMean->size()));		// weighted mean
+		VectorPtr pWeightedMean(new Vector(pMean->size()));			// weighted mean
 
 		// variance vector
 		if(fVarianceVector)
@@ -91,7 +106,7 @@ public:
 			pInvCov->noalias() = pCov->cwiseInverse();
 
 			// inv(Sigma)*mean
-			pWeightedMean->noalias() = pCov->cwiseProduct(*pMean);
+			pWeightedMean->noalias() = pInvCov->cwiseProduct(*pMean);
 		}
 
 		// covariance matrix
@@ -102,41 +117,50 @@ public:
 
 			// cholesky factor of the covariance matrix
 			CholeskyFactor L(*pCov);
-			if(pL->info() != Eigen::ComputationInfo::Success)
+			if(L.info() != Eigen::/*ComputationInfo::*/Success)
 			{
 				GP::Exception e;
 				switch(L.info())
 				{
-					case Eigen::ComputationInfo::NumericalIssue :
+					case Eigen::/*ComputationInfo::*/NumericalIssue :
 					{
 						e = "NumericalIssue";
 						break;
 					}
-					case Eigen::ComputationInfo::NoConvergence :
+					case Eigen::/*ComputationInfo::*/NoConvergence :
 					{
 						e = "NoConvergence";
 						break;
 					}
-					case Eigen::ComputationInfo::InvalidInput :
+#if EIGEN_VERSION_AT_LEAST(3,2,0)
+					case Eigen::/*ComputationInfo::*/InvalidInput :
 					{
 						e = "InvalidInput";
 						break;
 					}
+#endif
 				}
 				throw e;
 			}
 
 			// inv(Sigma)
-			pInvCov->noalias() = L.solve(Matrix::Identity(pCov->rows(), pCov->rows()));
+#if EIGEN_VERSION_AT_LEAST(3,2,0)
+			pInvCov->noalias() = L.solve(Matrix::Identity(pCov->rows(), pCov->rows()));	// (LL')*inv(Cov) = I
+#else
+			(*pInvCov) = L.solve(Matrix::Identity(pCov->rows(), pCov->rows()));				// (LL')*inv(Cov) = I
+#endif
 
 			// inv(Sigma)*mean
-			pWeightedMean->noalias() = L.solve(*pMean);
-			//pWeightedMean->noalias() = L.matrixL().solve(*pMean);
+#if EIGEN_VERSION_AT_LEAST(3,2,0)
+			pWeightedMean->noalias() = L.solve(*pMean);	// (LL')x = b
+#else
+			(*pWeightedMean) = L.solve(*pMean);				// (LL')x = b
+#endif
 		}
 
 		// sum of inverted covariance matrices or variance vectors
 		if(m_pSumOfInvCovs) (*m_pSumOfInvCovs) += (*pInvCov);
-		else					   m_pSumOfInvCovs = invCov;
+		else					   m_pSumOfInvCovs = pInvCov;
 		
 		// sum of weighted means
 		if(m_pSumOfWeightedMeans)	(*m_pSumOfWeightedMeans) += (*pWeightedMean);
@@ -153,82 +177,9 @@ protected:
 	 * @detail	\f$\mathbf\Sigma_* = \left(\sum_{k=1}^K \mathbf\Sigma_k^{-1} - (K-1)\mathbf\Simga_0^{-1}\right)^{-1}\f$
 	 */
 	MatrixPtr m_pSumOfInvCovs;
+};
+
 }
 
-template <>
-class GaussianDistribution<1>
-{
-public:
-	GaussianDistribution()
-		: m_mean((Scalar) 0.f), 
-			m_inverseVariance((Scalar) 0.f)
-	{
-	}
-
-	GaussianDistribution(const Scalar mean, const Scalar variance)
-		: m_mean(mean), 
-			m_inverseVariance(((Scalar) 1.f) / variance)
-	{
-	}
-
-	GaussianDistribution& operator=(const GaussianDistribution &rhs)
-	{
-		// Only do assignment if RHS is a different object from this.
-		if (this != &rhs)
-		{
-			m_mean						= rhs.m_mean;
-			m_inverseVariance	= rhs.m_inverseVariance;
-		}
-		return *this;
-	}
-
-	// merge
-	GaussianDistribution& operator+=(const GaussianDistribution &rhs)
-	{
-		m_mean						= m_inverseVariance * m_mean + rhs.m_inverseVariance * rhs.m_mean;
-		m_inverseVariance			+= rhs.m_inverseVariance;
-		m_mean						/= m_inverseVariance;
-		return *this;
-	}
-
-	/** \brief Return mean.
-	*  \return mean
-	* */
-	Scalar
-	getMean() const
-	{
-		return m_mean;
-	}
-
-	/** \brief Return variance.
-	*  \return variance
-	* */
-	Scalar
-	getVariance() const
-	{
-		return ((Scalar) 1.f) / m_inverseVariance;
-	}
-
-	/** \brief Return inverse variance.
-	*  \return inverse variance
-	* */
-	Scalar
-	getInverseVariance() const
-	{
-		return m_inverseVariance;
-	}
-
-	/** \brief reset */
-	void
-	reset ()
-	{
-		m_mean					= (Scalar) 0.f;
-		m_inverseVariance		= (Scalar) 0.f;
-	}
-
-protected:
-	Scalar			m_mean;
-	Scalar			m_inverseVariance;
-};
 
 #endif

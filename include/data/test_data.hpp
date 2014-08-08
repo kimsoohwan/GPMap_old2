@@ -6,40 +6,40 @@
 
 namespace GPMap {
 
-inline size_t xyz2idx(const size_t nGrids, const size_t ix, const size_t iy, const size_t iz)
+inline size_t xyz2idx(const size_t n, const size_t ix, const size_t iy, const size_t iz)
 {
-	return ix*nGrids*nGrids + iy*nGrids + iz;
+	return (ix*n*n + iy*n + iz);
 }
 
-inline void idx2xyz(const size_t nGrids, size_t index, size_t &ix, size_t &iy, size_t &iz)
+inline void idx2xyz(const size_t n, size_t index, size_t &ix, size_t &iy, size_t &iz)
 {
-	ix = static_cast<size_t>(static_cast<double>(index)/static_cast<double>(nGrids*nGrids));
-	index -= ix*nGrids*nGrids;
-	iy = static_cast<size_t>(static_cast<double>(index)/static_cast<double>(nGrids));
-	iz = index - iy*nGrids;
+	ix = static_cast<size_t>(static_cast<double>(index)/static_cast<double>(n*n));
+	index -= ix*n*n;
+	iy = static_cast<size_t>(static_cast<double>(index)/static_cast<double>(n));
+	iz = index - iy*n;
 }
 
-void meshGrid(const Eigen::Vector3f		&min,
-				  const size_t					nGrids,
+void meshGrid(const Eigen::Vector3f		&min_pt,
+				  const size_t					n,				// number of grid per axis
 				  const float					gridSize,
 				  MatrixPtr						&pXs)
 {
-	assert(nGrids > 0);
+	assert(n > 0);
 
 	// matrix size
-	if(!pXs || pXs->rows() != nGrids*nGrids*nGrids || pXs->cols() != 3)
-		pXs.reset(new Matrix(nGrids*nGrids*nGrids, 3));
+	if(!pXs || pXs->rows() != (n*n*n) || pXs->cols() != 3)
+		pXs.reset(new Matrix(n*n*n, 3));
 
 	// generate mesh grid in the order of x, y, z
 	int row = 0;
-	float x = min.x() + gridSize * static_cast<float>(0.5f);
-	for(size_t ix = 0; ix < nGrids; ix++, x += gridSize)
+	float x = min_pt.x() + gridSize * static_cast<float>(0.5f);
+	for(size_t ix = 0; ix < n; ix++, x += gridSize)
 	{
-		float y = min.y() + gridSize * static_cast<float>(0.5f);
-		for(size_t iy = 0; iy < nGrids; iy++, y += gridSize)
+		float y = min_pt.y() + gridSize * static_cast<float>(0.5f);
+		for(size_t iy = 0; iy < n; iy++, y += gridSize)
 		{
-			float z = min.z() + gridSize * static_cast<float>(0.5f);
-			for(size_t iz = 0; iz < nGrids; iz++, z += gridSize)
+			float z = min_pt.z() + gridSize * static_cast<float>(0.5f);
+			for(size_t iz = 0; iz < n; iz++, z += gridSize)
 			{
 				(*pXs)(row, 0) = x;
 				(*pXs)(row, 1) = y;
@@ -48,8 +48,6 @@ void meshGrid(const Eigen::Vector3f		&min,
 			}
 		}
 	}
-
-	return;
 }
 
 }

@@ -14,7 +14,7 @@
 #include <pcl/filters/filter.h>
 
 // GPMap
-#include "octree/octree_gp.hpp" // OctreePointCloud_GP
+#include "octree/octree_gpmap.hpp" // OctreeGPMap
 
 namespace GPMap {
 
@@ -25,8 +25,8 @@ namespace GPMap {
 const size_t MAX_DISPLAYED_CUBES(1500000);
 //=============================
 //typedef pcl::octree::OctreePointCloud<pcl::PointNormal> OctreeT;
-typedef OctreePointCloud_GP<pcl::PointNormal> OctreeT;
-//typedef OctreePointCloud_GP OctreeT;
+typedef OctreeGPMap<pcl::PointNormal> OctreeT;
+//typedef OctreeGPMap OctreeT;
 
 template <typename PointT>
 class OctreeViewer

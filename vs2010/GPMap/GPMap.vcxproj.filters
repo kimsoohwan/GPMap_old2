@@ -34,6 +34,9 @@
     <Filter Include="src\visualization">
       <UniqueIdentifier>{82cfb4ab-8010-404b-86f7-7e8535f2496b}</UniqueIdentifier>
     </Filter>
+    <Filter Include="test">
+      <UniqueIdentifier>{3e3d79f5-b48d-4772-aa48-93ac3bbafeee}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\include\io\io.hpp">
@@ -84,6 +87,8 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp" />
-    <ClCompile Include="..\..\test\octree\test_octree_gpmap.cpp" />
+    <ClCompile Include="..\..\test\octree\test_octree_gpmap.cpp">
+      <Filter>test</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>

@@ -12,7 +12,7 @@
 // LINK ERROR: cannot open file 'libboost_filesystem-vc100-mt-sgd-1_49.lib'
 // LINK ERROR: cannot open file 'libboost_filesystem-vc100-mt-s-1_49.lib'
 // #include "io/io.hpp"							// loadPointClouds, savePointClouds, loadSensorPositionList, 
-#include "common/common.hpp"					// getMinMax3DFromPointClouds
+#include "common/common.hpp"					// getMinMaxPointXYZ
 #include "filter/filters.hpp"					// cropBox
 #include "visualization/cloud_viewer.hpp"	// show
 #include "octree/octree_gpmap.hpp"

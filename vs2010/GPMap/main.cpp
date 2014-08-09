@@ -1,9 +1,11 @@
+#if 0
+
 // GPMap
 #include "io/io.hpp"								// loadPointClouds, savePointClouds, loadSensorPositionList
 #include "visualization/cloud_viewer.hpp"	// show
 #include "data/training_data.hpp"			// genEmptyPointList
 #include "features/surface_normal.hpp"		// estimateSurfaceNormals
-#include "common/common.hpp"					// getMinMax3DFromPointClouds
+#include "common/common.hpp"					// getMinMaxPointXYZ
 #include "octree/octree_gpmap.hpp"			// OctreeGPMap
 #include "octree/octree_viewer.hpp"			// OctreeViewer
 using namespace GPMap;
@@ -39,35 +41,35 @@ int main(int argc, char** argv)
 	show<pcl::PointXYZ>("Hit/Empty Points", hitEmptyPointCloudList);
 
 	// [3] load/save surface normals
-	PointNormalCloudPtrList pPointNormalClouds;
-	////estimateSurfaceNormals<ByNearestNeighbors>(hitPointCloudList, sensorPositionList, false, 0.01, pPointNormalClouds);
-	//estimateSurfaceNormals<ByMovingLeastSquares>(hitPointCloudList, sensorPositionList, false, 0.01, pPointNormalClouds);
-	//savePointClouds<pcl::PointNormal>(pPointNormalClouds, strFileNames, strInputDataFolder, "_normals.pcd");		// original pcd files which are transformed in global coordinates
-	loadPointClouds<pcl::PointNormal>(pPointNormalClouds, strFileNames, strInputDataFolder, "_normals.pcd");		// original pcd files which are transformed in global coordinates
-	//show<pcl::PointNormal>("Surface Normals", pPointNormalClouds, 0.005, true, 0.001);
+	PointNormalCloudPtrList pointNormalCloudList;
+	////estimateSurfaceNormals<ByNearestNeighbors>(hitPointCloudList, sensorPositionList, false, 0.01, pointNormalCloudList);
+	//estimateSurfaceNormals<ByMovingLeastSquares>(hitPointCloudList, sensorPositionList, false, 0.01, pointNormalCloudList);
+	//savePointClouds<pcl::PointNormal>(pointNormalCloudList, strFileNames, strInputDataFolder, "_normals.pcd");		// original pcd files which are transformed in global coordinates
+	loadPointClouds<pcl::PointNormal>(pointNormalCloudList, strFileNames, strInputDataFolder, "_normals.pcd");		// original pcd files which are transformed in global coordinates
+	//show<pcl::PointNormal>("Surface Normals", pointNormalCloudList, 0.005, true, 0.001);
 
 	// gpmap
 	pcl::PointXYZ min_pt, max_pt;
-	getMinMax3DFromPointClouds<pcl::PointNormal>(pPointNormalClouds, min_pt, max_pt);
+	getMinMaxPointXYZ<pcl::PointNormal>(pointNormalCloudList, min_pt, max_pt);
 	const double BLOCK_SIZE = 0.01; // 0.001
 	const size_t NUM_CELLS_PER_AXIS = 10;
 	const bool INDEPENDENT_BCM = true;
 	const bool POINT_DUPLICATION = false;
 	//OctreeGPMap<pcl::PointNormal> gpmap(BLOCK_SIZE, nCellsPerBlock, min_pt, max_pt);
 	//pcl::octree::OctreePointCloud<pcl::PointNormal> gpmap(BLOCK_SIZE);
-	//gpmap.setInputCloud(pPointNormalClouds[0]);
+	//gpmap.setInputCloud(pointNormalCloudList[0]);
 	//gpmap.defineBoundingBox();			//update bounding box automatically    
 	//gpmap.addPointsFromInputCloud();	//add points in the tree
 	OctreeGPMap<pcl::PointNormal> gpmap(BLOCK_SIZE, NUM_CELLS_PER_AXIS, INDEPENDENT_BCM, POINT_DUPLICATION);
 	gpmap.defineBoundingBox(min_pt, max_pt);
-	gpmap.setInputCloud(pPointNormalClouds[0], GAP, sensorPositionList[0]);
+	gpmap.setInputCloud(pointNormalCloudList[0], GAP, sensorPositionList[0]);
 	gpmap.addPointsFromInputCloud();
 	gpmap.update();
-	OctreeViewer<pcl::PointNormal> octree_viewer(pPointNormalClouds[0], gpmap);
-	gpmap.setInputCloud(pPointNormalClouds[1], GAP, sensorPositionList[1]);
+	OctreeViewer<pcl::PointNormal> octree_viewer(pointNormalCloudList[0], gpmap);
+	gpmap.setInputCloud(pointNormalCloudList[1], GAP, sensorPositionList[1]);
 	gpmap.addPointsFromInputCloud();
 	gpmap.update();
-	OctreeViewer<pcl::PointNormal> octree_viewer2(pPointNormalClouds[1], gpmap);
+	OctreeViewer<pcl::PointNormal> octree_viewer2(pointNormalCloudList[1], gpmap);
 	//gpmap.predict();
 
 
@@ -83,3 +85,5 @@ int main(int argc, char** argv)
 
 	system("pause");
 }
+
+#endif

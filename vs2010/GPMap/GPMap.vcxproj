@@ -80,6 +80,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="..\..\test\octree\test_octree_gpmap.cpp" />
     <ClCompile Include="main.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -97,7 +98,7 @@
     <ClInclude Include="..\..\include\plsc\plsc.hpp" />
     <ClInclude Include="..\..\include\util\data_types.hpp" />
     <ClInclude Include="..\..\include\util\util.hpp" />
-    <ClInclude Include="..\..\include\visualization\display.hpp" />
+    <ClInclude Include="..\..\include\visualization\cloud_viewer.hpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

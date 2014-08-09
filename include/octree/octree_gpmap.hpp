@@ -70,7 +70,8 @@ public:
 	* @param[in] min_pt lower bounding box corner point
 	* @param[in] max_pt upper bounding box corner point
 	*/
-	void defineBoundingBox(const pcl::PointXYZ &min_pt, const pcl::PointXYZ &max_pt)
+	template <typename GeneralPointT>
+	void defineBoundingBox(const GeneralPointT &min_pt, const GeneralPointT &max_pt)
 	{
 		defineBoundingBox(min_pt.x, min_pt.y, min_pt.z, 
 								max_pt.x, max_pt.y, max_pt.z);
@@ -94,7 +95,7 @@ public:
 		maxX = ceil (static_cast<double>(maxX)/m_blockSize + 1.f)*m_blockSize;
 		maxY = ceil (static_cast<double>(maxY)/m_blockSize + 1.f)*m_blockSize;
 		maxZ = ceil (static_cast<double>(maxZ)/m_blockSize + 1.f)*m_blockSize;
-		defineBoundingBox(minX, minY, minZ, maxX, maxY, maxZ);
+		pcl::octree::OctreePointCloud<PointT, LeafT, BranchT, OctreeT>::defineBoundingBox(minX, minY, minZ, maxX, maxY, maxZ);
 	}
 
    /** @brief Provide a pointer to the input data set.
@@ -457,7 +458,7 @@ protected:
 						Eigen::Vector3f min_pt, max_pt;
 						genVoxelBounds(static_cast<unsigned int>(key.x+deltaX), 
 											static_cast<unsigned int>(key.y+deltaY),
-											static_cast<unsigned int>(key.z+deltaZ)), 
+											static_cast<unsigned int>(key.z+deltaZ), 
 											min_pt, max_pt);
 						assert(min_pt.x() >= minX_ && min_pt.y() >= minY_ && min_pt.z() >= minZ_);
 						assert(max_pt.x() <= maxX_ && max_pt.y() <= maxY_ && max_pt.z() <= maxZ_);

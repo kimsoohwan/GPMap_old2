@@ -45,9 +45,6 @@
     <ClInclude Include="..\..\include\octree\octree_viewer.hpp">
       <Filter>src\octree</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\include\visualization\display.hpp">
-      <Filter>src\visualization</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\include\features\remove_NAN.hpp">
       <Filter>src\features</Filter>
     </ClInclude>
@@ -81,8 +78,12 @@
     <ClInclude Include="..\..\include\octree\octree_gpmap.hpp">
       <Filter>src\octree</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\include\visualization\cloud_viewer.hpp">
+      <Filter>src\visualization</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="..\..\test\octree\test_octree_gpmap.cpp" />
   </ItemGroup>
 </Project>

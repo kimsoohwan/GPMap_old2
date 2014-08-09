@@ -1,6 +1,6 @@
 // GPMap
 #include "io/io.hpp"								// loadPointClouds, savePointClouds, loadSensorPositionList
-#include "visualization/display.hpp"		// show
+#include "visualization/cloud_viewer.hpp"	// show
 #include "data/training_data.hpp"			// genEmptyPointList
 #include "features/surface_normal.hpp"		// estimateSurfaceNormals
 #include "common/common.hpp"					// getMinMax3DFromPointClouds

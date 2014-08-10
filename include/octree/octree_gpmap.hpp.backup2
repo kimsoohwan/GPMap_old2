@@ -27,64 +27,30 @@
 
 namespace GPMap {
 
-typedef LeafNode														LeafT;
-typedef pcl::octree::OctreeContainerEmpty<int>				BranchT;
-typedef pcl::octree::OctreeBase<int, LeafT, BranchT>		OctreeT;
-
-//template<typename PointT, 
-//			typename LeafT		= LeafNode,
-//			typename BranchT	= pcl::octree::OctreeContainerEmpty<int>,
-//			typename OctreeT	= pcl::octree::OctreeBase<int, LeafT, BranchT> >
-//class OctreeGPMap : protected pcl::octree::OctreePointCloud<PointT, LeafNode, BranchT, OctreeT>
-
-//template<typename PointT>
-//class OctreeGPMap : protected pcl::octree::OctreePointCloud<PointT, LeafNode, BranchT, OctreeT>
-
-template<typename PointT,
-			template<typename> class MeanFunc, 
-			template<typename> class CovFunc, 
-			template<typename> class LikFunc,
-			template <typename, 
-						 template<typename> class,
-						 template<typename> class,
-						 template<typename> class> class InfMethod>
-class OctreeGPMap : protected pcl::octree::OctreePointCloud<PointT, LeafNode, BranchT, OctreeT>
+template<typename PointT, 
+			typename LeafT		= LeafNode,
+			typename BranchT	= pcl::octree::OctreeContainerEmpty<int>,
+			typename OctreeT	= pcl::octree::OctreeBase<int, LeafT, BranchT> >
+class OctreeGPMap : protected pcl::octree::OctreePointCloud<PointT, LeafT, BranchT, OctreeT>
 {
-protected:
-	// octree
-	typedef pcl::octree::OctreePointCloud<PointT, LeafT, BranchT, OctreeT>	Parent;
-	typedef OctreeGPMap<PointT, MeanFunc, CovFunc, LikFunc, InfMethod>		OctreeGPMapType;
-
-	// Gaussian processes
-	typedef float Scalar;
-	typedef GP::GaussianProcess<Scalar, MeanFunc, CovFunc, LikFunc, InfMethod>	GPType;
-
-public:
-	typedef typename GPType::Hyp Hyp;
-
-protected:
-	// data
-	typedef GP::DerivativeTrainingData<float>		DerivativeTrainingData;
-	typedef GP::TestData<float>						TestData;
-
 public:
 	public:
 	/** @brief Constructor
 	*  @param resolution: octree resolution at lowest octree level
     */
-   OctreeGPMap(const double			BLOCK_SIZE, 
-					const size_t			NUM_CELLS_PER_AXIS, 
-					const bool				FLAG_INDEPENDENT_BCM,
-					const bool				FLAG_DUPLICATE_POINTS = false,
-					const size_t			MIN_NUM_POINTS_TO_PREDICT = 5)
+   OctreeGPMap(const double				BLOCK_SIZE, 
+					const size_t				NUM_CELLS_PER_AXIS, 
+					const bool					FLAG_INDEPENDENT_BCM,
+					const bool					FLAG_DUPLICATE_POINTS = false,
+					const size_t				MIN_NUM_POINTS_TO_PREDICT = 5)
 		: pcl::octree::OctreePointCloud<PointT, LeafT, BranchT, OctreeT>(BLOCK_SIZE),
 		  BLOCK_SIZE_						(resolution_),
-		  NUM_CELLS_PER_AXIS_			(max<size_t>(1, NUM_CELLS_PER_AXIS)),
+		  NUM_CELLS_PER_AXIS_			(min<size_t>(1, NUM_CELLS_PER_AXIS)),
 		  NUM_CELLS_PER_BLOCK_			(NUM_CELLS_PER_AXIS_*NUM_CELLS_PER_AXIS_*NUM_CELLS_PER_AXIS_),
 		  CELL_SIZE_						(BLOCK_SIZE_/static_cast<double>(NUM_CELLS_PER_AXIS_)),
 		  FLAG_INDEPENDENT_BCM_			(FLAG_INDEPENDENT_BCM),
 		  FLAG_DUPLICATE_POINTS_		(FLAG_DUPLICATE_POINTS),
-		  MIN_NUM_POINTS_TO_PREDICT_	(max<size_t>(1, MIN_NUM_POINTS_TO_PREDICT)),
+		  MIN_NUM_POINTS_TO_PREDICT_	(MIN_NUM_POINTS_TO_PREDICT),
 		  m_pXs(new Matrix(NUM_CELLS_PER_BLOCK_, 3))
    {
 #ifdef _TEST_OCTREE_GPMAP
@@ -130,7 +96,7 @@ public:
 		maxX = ceil (maxX/BLOCK_SIZE_ + 1.f)*BLOCK_SIZE_;
 		maxY = ceil (maxY/BLOCK_SIZE_ + 1.f)*BLOCK_SIZE_;
 		maxZ = ceil (maxZ/BLOCK_SIZE_ + 1.f)*BLOCK_SIZE_;
-		Parent::defineBoundingBox(minX, minY, minZ, maxX, maxY, maxZ);
+		pcl::octree::OctreePointCloud<PointT, LeafT, BranchT, OctreeT>::defineBoundingBox(minX, minY, minZ, maxX, maxY, maxZ);
 
 #ifdef _TEST_OCTREE_GPMAP
 		std::cout << "min: (" << minX_ << ", " << minY_ << ", " << minZ_ << "), "
@@ -284,71 +250,6 @@ public:
 		}
 	}
 
-	/** @brief		Train hyperparameters 
-	  * @return		Minimum sum of negative log marginalizations of all leaf nodes
-	 */
-	GP::DlibScalar train(Hyp &logHyp, const int maxIter, const GP::DlibScalar minValue = 1e-15)
-	{
-		// conversion from GP hyperparameters to a Dlib vector
-		GP::DlibVector logDlib;
-		logDlib.set_size(logHyp.size());
-		GP::Hyp2Dlib<Scalar, MeanFunc, CovFunc, LikFunc>(logHyp, logDlib);
-
-		// trainer
-		GP::DlibScalar minNlZ = GP::TrainerUsingApproxDerivatives<OctreeGPMapType>::train<GP::BOBYQA, GP::NoStopping>(logDlib,
-																																						  *this, // Bug: const object
-																																						  maxIter, minValue);
-
-		// conversion from a Dlib vector to GP hyperparameters
-		GP::Dlib2Hyp<Scalar, MeanFunc, CovFunc, LikFunc>(logDlib, logHyp);
-
-		return minNlZ;
-	}
-
-	/** @brief		Operator for optimizing hyperparameters 
-	  * @return		Sum of negative log marginalizations of all leaf nodes
-	 */
-	GP::DlibScalar operator()(const GP::DlibVector &logDlib) //const
-	{
-		// Sum of negative log marginalizations of all leaf nodes
-		GP::DlibScalar sumNlZ(0);
-
-		// convert a Dlib vector to GP hyperparameters
-		Hyp logHyp;
-		GP::Dlib2Hyp<Scalar, MeanFunc, CovFunc, LikFunc>(logDlib, logHyp);
-
-		// for each leaf node
-		LeafNodeIterator iter(*this);
-		Indices indexList;
-		Scalar nlZ;
-		while(*++iter)
-		{
-			// get indices
-			const Indices &indexList  = static_cast<LeafNode*>(iter.getCurrentOctreeNode())->getDataTVector();
-
-			// if there is no point in the node, ignore it
-			if(indexList.size() < MIN_NUM_POINTS_TO_PREDICT_) continue;
-
-			// training data
-			DerivativeTrainingData derivativeTrainingData;
-			MatrixPtr pX, pXd; VectorPtr pYYd;
-			generateTraingData(input_, indexList, m_sensorPosition, m_gap, pX, pXd, pYYd);
-			derivativeTrainingData.set(pX, pXd, pYYd);
-
-			//InfType::negativeLogMarginalLikelihood(logHyp, 
-			GPType::negativeLogMarginalLikelihood(logHyp, 
-															  derivativeTrainingData,
-															  nlZ, 
-															  VectorPtr(),
-															  1);
-
-			// sum
-			sumNlZ += static_cast<GP::DlibScalar>(nlZ);
-		}
-
-		return sumNlZ;
-	}
-
 	/** @brief		Update the GPMap with new observations */
 	void update()
 	{
@@ -364,7 +265,7 @@ public:
 
 			// for each leaf node
 			Eigen::Vector3f min_pt;
-			//Indices indexList;
+			Indices indexVector;
 			while(*++iter)
 			{
 				// key
@@ -374,39 +275,34 @@ public:
 				genVoxelMinPoint(key, min_pt);
 
 				// collect indices
-				//indexList.clear();
-				//getData(key, indexList);
-				const Indices &indexList  = static_cast<LeafNode*>(iter.getCurrentOctreeNode())->getDataTVector();
+				indexVector.clear();
+				getData(key, indexVector);
 
 #ifdef _TEST_OCTREE_GPMAP
 				// more than one points should be dangled in itself or neighbors
-				// assert(indexList.size() > 0);
+				assert(indexVector.size() > 0);
 #endif
 				// if the total number of points are too small, ignore it.
-				if(indexList.size() < MIN_NUM_POINTS_TO_PREDICT_) continue;
+				if(indexVector.size() < MIN_NUM_POINTS_TO_PREDICT_) continue;
 
 				// leaf node
 				LeafNode *pLeafNode = static_cast<LeafNode *>(iter.getCurrentOctreeNode());
 
 				// predict
-				//predict(indexList, min_pt, pLeafNode);
+				//predict(indexVector, min_pt, pLeafNode);
 			}
 		}
 		else
 		{
-			// TODO
-			// Present: for each leaf node, collect all point indices and if it is greater than minimum, update
-			// Future: collect all non-empty block centers to a set, add its neighbors to the set, then update all nodes in the set
-
 			// create empty neigboring blocks if necessary
-			createEmptyNeigboringBlocks();
+			PointXYZVListPtr pNonEmptyBlockCenterPointXYZList = createEmptyNeigboringBlocks();
 
 			// leaf node iterator
 			LeafNodeIterator iter(*this);
 
 			// for each leaf node
 			Eigen::Vector3f min_pt;
-			std::vector<int> indexList;
+			std::vector<int> indexVector;
 			while(*++iter)
 			{
 				// key
@@ -416,7 +312,7 @@ public:
 				genVoxelMinPoint(key, min_pt);
 
 				// collect point indices in neighboring blocks
-				indexList.clear();
+				indexVector.clear();
 				int nextKeyX, nextKeyY, nextKeyZ;
 				for(int deltaX = -1; deltaX <= 1; deltaX++)
 				{
@@ -439,23 +335,23 @@ public:
 							getData(pcl::octree::OctreeKey(static_cast<unsigned int>(nextKeyX), 
 																	 static_cast<unsigned int>(nextKeyY), 
 																	 static_cast<unsigned int>(nextKeyZ)),
-																	 indexList);
+																	 indexVector);
 						}
 					}
 				}
 
 #ifdef _TEST_OCTREE_GPMAP
 				// more than one points should be dangled in itself or neighbors
-				// assert(indexList.size() > 0);
+				assert(indexVector.size() > 0);
 #endif
 				// if the total number of points are too small, ignore it.
-				if(indexList.size() < MIN_NUM_POINTS_TO_PREDICT_) continue;
+				if(indexVector.size() < MIN_NUM_POINTS_TO_PREDICT_) continue;
 
 				// leaf node
 				LeafNode *pLeafNode = static_cast<LeafNode *>(iter.getCurrentOctreeNode());
 
 				// predict
-				//predict(indexList, min_pt, pLeafNode);
+				//predict(indexVector, min_pt, pLeafNode);
 			}
 		}
 	}
@@ -579,6 +475,7 @@ public:
 		}
 	}
 
+
 	/** @brief Get the total number of point indices stored in each voxel */
 	size_t totalNumOfPointsDangledInVoxels()
 	{
@@ -614,26 +511,6 @@ public:
 
 		return true;
 	}
-
-   /** @brief		Get a pointer to the input point cloud dataset.
-	  * @details	This function overrides the parent's corresponding function
-	  *				to cover the protected inheritance.
-     * @return pointer to pointcloud input class.
-     */
-   inline PointCloudConstPtr getInputCloud() const
-   {
-      return Parent::getInputCloud();
-   }
-	
-	/** @brief		Get octree voxel resolution
-	  * @details	This function overrides the parent's corresponding function
-	  *				to cover the protected inheritance.
-     * @return voxel resolution at lowest tree level
-     */
-   double getResolution() const
-   {
-		return Parent::getResolution();
-   }
 
 	double getCellSize() const
 	{
@@ -806,7 +683,7 @@ protected:
 	}
 
 	/** @brief Get the point indices in the leaf node corresponding the octree key */
-	bool getData(const pcl::octree::OctreeKey &key, std::vector<int> &indexList) const
+	bool getData(const pcl::octree::OctreeKey &key, std::vector<int> &indexVector) const
 	{
 		// leaf node corresponding the octree key
 		LeafNode* pLeafNode = findLeaf(key);
@@ -814,7 +691,7 @@ protected:
 		// if the leaf node exists, add point indices to the vector
 		if(pLeafNode)
 		{
-			pLeafNode->getData(indexList);
+			pLeafNode->getData(indexVector);
 			return true;
 		}
 		return false;
@@ -987,14 +864,14 @@ protected:
 	  *				Thus, prediction is done in OctreeGPMap not in LeafNode.
 	  *				But the result will be dangled to LeafNode for further BCM update.
 	  */
-	void predict(const Indices				&indexList, 
+	void predict(const Indices				&indexVector, 
 					 Eigen::Vector3f			&min_pt,
 					 LeafNode					*pLeafNode)
 	{
 		// training data
 		DerivativeTrainingData derivativeTrainingData;
 		MatrixPtr pX, pXd; VectorPtr pYYd;
-		generateTraingData(input_, indexList, m_sensorPosition, m_gap, pX, pXd, pYYd);
+		generateTraingData(input_, indexVector, m_sensorPosition, m_gap, pX, pXd, pYYd);
 		derivativeTrainingData.set(pX, pXd, pYYd);
 
 		// test data
@@ -1011,7 +888,7 @@ protected:
 		const float sigma_n(0.1f);
 		const float sigma_nd(0.2f);
 
-		Hyp		logHyp;
+		GPType::Hyp		logHyp;
 		logHyp.cov(0) = log(ell);
 		logHyp.cov(1) = log(sigma_f);
 		logHyp.lik(0) = log(sigma_n);
@@ -1066,6 +943,7 @@ protected:
 	MatrixPtr	m_pXs;
 };
  
+
 }
 
 #endif

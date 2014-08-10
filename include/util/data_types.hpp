@@ -27,7 +27,9 @@ TYPE_DEFINE_CHOLESKYFACTOR(float)
 
 //PCL
 /** @brief Type for a vector of pcl::PointXYZ points */
-typedef std::vector<pcl::PointXYZ, Eigen::aligned_allocator<pcl::PointXYZ> > PointXYZVector;
+typedef std::vector<pcl::PointXYZ, Eigen::aligned_allocator<pcl::PointXYZ> >	PointXYZVList;
+typedef boost::shared_ptr<PointXYZVList>													PointXYZVListPtr;
+typedef boost::shared_ptr<const PointXYZVList>											PointXYZVListConstPtr;
 
 /** @brief int */
 typedef std::vector<int>										Indices;
@@ -53,9 +55,9 @@ typedef std::vector<PointNormalCloudPtr>					PointNormalCloudPtrList;
 typedef std::vector<PointNormalCloudConstPtr>			PointNormalCloudConstPtrList;
 
 // OpenGP
-typedef GP::GaussianProcess<float, GP::MeanZeroDerObs, GP::CovSEisoDerObs, GP::LikGaussDerObs, GP::InfExactDerObs> GPType;
-typedef GP::DerivativeTrainingData<float>		DerivativeTrainingData;
-typedef GP::TestData<float>						TestData;
+//typedef GP::GaussianProcess<float, GP::MeanZeroDerObs, GP::CovSEisoDerObs, GP::LikGaussDerObs, GP::InfExactDerObs> GPType;
+//typedef GP::DerivativeTrainingData<float>		DerivativeTrainingData;
+//typedef GP::TestData<float>						TestData;
 
 }
 

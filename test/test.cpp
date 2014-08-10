@@ -1,6 +1,6 @@
 #include "data/test_test_data.hpp"
 #include "bcm/test_bcm.hpp"
-#include "octree/test_octree_gpmap.hpp"
+//#include "octree/test_octree_gpmap.hpp"
 
 int main(int argc, char** argv) 
 { 

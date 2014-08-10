@@ -98,7 +98,7 @@ protected:
 		const bool			POINT_DUPLICATION;
 
 		//PointXYZCloudPtrList			hitPointCloudList;
-		//PointXYZVector					sensorPositionList;
+		//PointXYZVList					sensorPositionList;
 		//PointNormalCloudPtrList		pPointNormalClouds;
 
 		// In order not to use boost::filesystem, because of its compatability with Google Test

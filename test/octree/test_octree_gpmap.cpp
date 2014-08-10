@@ -1,4 +1,4 @@
-#if 1
+#if 0
 
 #define _TEST_OCTREE_GPMAP
 
@@ -63,13 +63,7 @@ int main(int argc, char**argv)
 		const bool			POINT_DUPLICATION(false);
 		const float			GAP(0.001);
 		OctreeGPMap<pcl::PointNormal> gpmap(BLOCK_SIZE, NUM_CELLS_PER_AXIS, INDEPENDENT_BCM, POINT_DUPLICATION);
-
-		// [6] bounding box
 		gpmap.defineBoundingBox(min_pt, max_pt);
-		double minX, minY, minZ, maxX, maxY, maxZ;
-		gpmap.getBoundingBox(minX, minY, minZ, maxX, maxY, maxZ);
-		std::cout << "min: (" << minX << ", " << minY << ", " << minZ << "), "
-					 << "max: (" << maxX << ", " << maxY << ", " << maxZ << ")" << std::endl;
 
 		// [7] observations
 		for(size_t i = 0; i < NUM_DATA; i++)

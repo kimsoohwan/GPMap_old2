@@ -25,17 +25,16 @@ namespace GPMap {
 const size_t MAX_DISPLAYED_CUBES(1500000);
 //=============================
 //typedef pcl::octree::OctreePointCloud<pcl::PointNormal> OctreeT;
-typedef OctreeGPMap<pcl::PointNormal> OctreeT;
+//typedef OctreeGPMap<pcl::PointNormal> OctreeT;
 //typedef OctreeGPMap OctreeT;
 
-template <typename PointT>
+template <typename PointT, typename OctreeT>
 class OctreeViewer
 {
 public:
-	OctreeViewer(const typename pcl::PointCloud<PointT>::Ptr pPointCloud,
-					 OctreeT &octree)
+	OctreeViewer(OctreeT &octree)
 		: viz("Octree visualizator"),
-		  m_pOriginalPointCloud(pPointCloud),
+		  m_pOriginalPointCloud(octree.getInputCloud()),
 		  m_octree(octree),
 		  m_pVoxelCenterPointCloud(new pcl::PointCloud<pcl::PointXYZ>()),
 		  m_fDrawWithCubesOrCenterPoints(true),
@@ -267,7 +266,7 @@ protected:
 	pcl::visualization::PCLVisualizer viz;
 
 	//original cloud
-	typename pcl::PointCloud<PointT>::Ptr m_pOriginalPointCloud;
+	typename pcl::PointCloud<PointT>::ConstPtr &m_pOriginalPointCloud;
 
 	//displayed_cloud
 	typename pcl::PointCloud<pcl::PointXYZ>::Ptr m_pVoxelCenterPointCloud;

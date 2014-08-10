@@ -19,7 +19,7 @@
 #endif
 
 // GPMap
-#include "util/data_types.hpp"				// PointXYZVector
+#include "util/data_types.hpp"				// PointXYZVList
 #include "remove_NAN.hpp"
 
 namespace GPMap {
@@ -182,14 +182,14 @@ class ByMovingLeastSquares {};
 
 template <typename EstimateMethod>
 void estimateSurfaceNormals(const vector<pcl::PointCloud<pcl::PointXYZ>::Ptr>			&pointClouds, 
-									 const PointXYZVector												&sensorPositionList,
+									 const PointXYZVList												&sensorPositionList,
 									 const bool																fSearchRadius, // SearchRadius or SearchK
 									 const float															param,			// radius or k
 									 vector<pcl::PointCloud<pcl::PointNormal>::Ptr>				&pointNormalClouds);
 
 template <>
 void estimateSurfaceNormals<ByNearestNeighbors>(const vector<pcl::PointCloud<pcl::PointXYZ>::Ptr>		&pointClouds,
-																const PointXYZVector												&sensorPositionList,
+																const PointXYZVList												&sensorPositionList,
 																const bool															fSearchNearestK, // SearchRadius or SearchNearestK
 																const float															param,			// radius or k
 																vector<pcl::PointCloud<pcl::PointNormal>::Ptr>			&pointNormalClouds)
@@ -212,7 +212,7 @@ void estimateSurfaceNormals<ByNearestNeighbors>(const vector<pcl::PointCloud<pcl
 
 template <>
 void estimateSurfaceNormals<ByMovingLeastSquares>(const vector<pcl::PointCloud<pcl::PointXYZ>::Ptr>		&pointClouds,
-																  const PointXYZVector												&sensorPositionList,
+																  const PointXYZVList												&sensorPositionList,
 																  const bool															fSearchNearestK, // SearchRadius or SearchNearestK
 																  const float															param,			// radius or k
 																  vector<pcl::PointCloud<pcl::PointNormal>::Ptr>			&pointNormalClouds)

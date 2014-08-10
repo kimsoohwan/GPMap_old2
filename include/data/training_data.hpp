@@ -6,7 +6,7 @@
 #include <pcl/point_cloud.h>		// pcl::PointCloud
 
 // GPMap
-#include "util/data_types.hpp" // PointXYZVector, Matrix, MatrixPtr, Vector, VectorPtr
+#include "util/data_types.hpp" // PointXYZVList, Matrix, MatrixPtr, Vector, VectorPtr
 
 namespace GPMap {
 
@@ -79,7 +79,7 @@ genEmptyPointCloud(const float														gap,
 /** @brief Generate empty points just before hit points */
 template <typename PointT>
 void genEmptyPointCloudList(const float																	gap,
-									 const PointXYZVector														&sensorPositionList,
+									 const PointXYZVList														&sensorPositionList,
 									 const std::vector<typename pcl::PointCloud<PointT>::Ptr>		&hitPointCloudList,
 									 PointXYZCloudPtrList														&emptyPointCloudList)
 {

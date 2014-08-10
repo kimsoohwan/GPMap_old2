@@ -18,7 +18,7 @@
 #include <pcl/io/ply_io.h>			// pcl::io::loadPLYFile, savePLYFile
 
 // GPMap
-#include "util/data_types.hpp"		// PointXYZVector
+#include "util/data_types.hpp"		// PointXYZVList
 
 namespace GPMap {
 
@@ -120,7 +120,7 @@ void savePointClouds(const std::vector<typename pcl::PointCloud<PointT>::Ptr>		&
 }
 
 
-void loadSensorPositionList(PointXYZVector		&sensorPositionList, 
+void loadSensorPositionList(PointXYZVList		&sensorPositionList, 
 									 const StringList		&strFileNames, 
 									 const std::string	&strPrefix = std::string(),
 									 const std::string	&strSuffix = std::string())

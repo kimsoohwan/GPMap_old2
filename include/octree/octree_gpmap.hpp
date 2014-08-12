@@ -76,7 +76,7 @@ public:
 					const size_t			NUM_CELLS_PER_AXIS, 
 					const bool				FLAG_INDEPENDENT_BCM,
 					const bool				FLAG_DUPLICATE_POINTS = false,
-					const size_t			MIN_NUM_POINTS_TO_PREDICT = 5)
+					const size_t			MIN_NUM_POINTS_TO_PREDICT = 10)
 		: pcl::octree::OctreePointCloud<PointT, LeafT, BranchT, OctreeT>(BLOCK_SIZE),
 		  BLOCK_SIZE_						(resolution_),
 		  NUM_CELLS_PER_AXIS_			(max<size_t>(1, NUM_CELLS_PER_AXIS)),
@@ -148,7 +148,7 @@ public:
     */
    void setInputCloud(const PointCloudConstPtr	&pCloud,
 							 const float					gap = 0.f,
-							 const pcl::PointXYZ			&sensorPosition = pcl::PointXYZ(),
+							 //const pcl::PointXYZ			&sensorPosition = pcl::PointXYZ(),
 							 const IndicesConstPtr		&pIndices = IndicesConstPtr())
    {
 		//assert(this->leafCount_==0);
@@ -159,7 +159,7 @@ public:
 
 		// gap and sensor position for generating empty points
 		m_gap = gap;
-		m_sensorPosition = sensorPosition;
+		//m_sensorPosition = sensorPosition;
 	}
 
 	/** @brief Add points from input point cloud to octree.
@@ -282,22 +282,42 @@ public:
 				}
 			}
 		}
+
+#ifndef CONST_LEAF_NODE_ITERATOR_
+		m_nonEmptyBlockCenterPointXYZList.clear();
+		getOccupiedBlockCenters(m_nonEmptyBlockCenterPointXYZList, true);
+#endif
 	}
 
 	/** @brief		Train hyperparameters 
 	  * @return		Minimum sum of negative log marginalizations of all leaf nodes
 	 */
-	GP::DlibScalar train(Hyp &logHyp, const int maxIter, const GP::DlibScalar minValue = 1e-15)
+	GP::DlibScalar train(Hyp &logHyp, const int maxIter, const size_t numRandomBlocks = 0, const GP::DlibScalar minValue = 1e-15)
 	{
+		// select random blocks
+#ifndef CONST_LEAF_NODE_ITERATOR_
+		if(numRandomBlocks > 0 && numRandomBlocks < m_nonEmptyBlockCenterPointXYZList.size())
+		{
+			random_unique(m_nonEmptyBlockCenterPointXYZList.begin(), m_nonEmptyBlockCenterPointXYZList.end(), numRandomBlocks);
+			m_numRandomBlocks = numRandomBlocks;
+		}
+		else
+			m_numRandomBlocks = m_nonEmptyBlockCenterPointXYZList.size();
+#endif
+
 		// conversion from GP hyperparameters to a Dlib vector
 		GP::DlibVector logDlib;
 		logDlib.set_size(logHyp.size());
 		GP::Hyp2Dlib<Scalar, MeanFunc, CovFunc, LikFunc>(logHyp, logDlib);
 
 		// trainer
+#if EIGEN_VERSION_AT_LEAST(3,2,0)
 		GP::DlibScalar minNlZ = GP::TrainerUsingApproxDerivatives<OctreeGPMapType>::train<GP::BOBYQA, GP::NoStopping>(logDlib,
 																																						  *this, // Bug: const object
 																																						  maxIter, minValue);
+#else
+	#error
+#endif
 
 		// conversion from a Dlib vector to GP hyperparameters
 		GP::Dlib2Hyp<Scalar, MeanFunc, CovFunc, LikFunc>(logDlib, logHyp);
@@ -307,8 +327,9 @@ public:
 
 	/** @brief		Operator for optimizing hyperparameters 
 	  * @return		Sum of negative log marginalizations of all leaf nodes
+	  * @todo		Do not cover all of the leaf nodes, but select some(10,100) of them randomly
 	 */
-	GP::DlibScalar operator()(const GP::DlibVector &logDlib) //const
+	GP::DlibScalar operator()(const GP::DlibVector &logDlib) const
 	{
 		// Sum of negative log marginalizations of all leaf nodes
 		GP::DlibScalar sumNlZ(0);
@@ -316,23 +337,46 @@ public:
 		// convert a Dlib vector to GP hyperparameters
 		Hyp logHyp;
 		GP::Dlib2Hyp<Scalar, MeanFunc, CovFunc, LikFunc>(logDlib, logHyp);
+		std::cout << "hyp.mean = " << std::endl << logHyp.mean.array().exp().matrix() << std::endl << std::endl;
+		std::cout << "hyp.cov = "  << std::endl << logHyp.cov.array().exp().matrix()  << std::endl << std::endl;
+		std::cout << "hyp.lik = "  << std::endl << logHyp.lik.array().exp().matrix()  << std::endl << std::endl;
 
 		// for each leaf node
-		LeafNodeIterator iter(*this);
+		LeafNode* pLeafNode;
 		Indices indexList;
 		Scalar nlZ;
+		size_t blockCount(0);
+#ifdef CONST_LEAF_NODE_ITERATOR_
+		LeafNodeIterator iter(*this);
 		while(*++iter)
+#else
+		std::cout << "Total: " << m_numRandomBlocks << " / " << m_nonEmptyBlockCenterPointXYZList.size() << " - ";
+		pcl::octree::OctreeKey key;
+		for(PointXYZVList::const_iterator iter = m_nonEmptyBlockCenterPointXYZList.begin();
+			 (iter != m_nonEmptyBlockCenterPointXYZList.cend()) && (blockCount < m_numRandomBlocks);
+			 iter++, blockCount++)
+#endif
 		{
+			// leaf node corresponding the octree key
+#ifdef CONST_LEAF_NODE_ITERATOR_
+			pLeafNode = static_cast<LeafNode*>(iter.getCurrentOctreeNode())->getDataTVector();
+#else
+			// key
+			genOctreeKeyforPointXYZ(*iter, key);
+			pLeafNode = findLeaf(key);
+#endif
 			// get indices
-			const Indices &indexList  = static_cast<LeafNode*>(iter.getCurrentOctreeNode())->getDataTVector();
+			const Indices &indexList = pLeafNode->getDataTVector();
 
 			// if there is no point in the node, ignore it
 			if(indexList.size() < MIN_NUM_POINTS_TO_PREDICT_) continue;
+			std::cout << blockCount << "(" << indexList.size() << "), ";
 
 			// training data
 			DerivativeTrainingData derivativeTrainingData;
 			MatrixPtr pX, pXd; VectorPtr pYYd;
-			generateTraingData(input_, indexList, m_sensorPosition, m_gap, pX, pXd, pYYd);
+			//generateTraingData(input_, indexList, m_sensorPosition, m_gap, pX, pXd, pYYd);
+			generateTraingData(input_, indexList, m_gap, pX, pXd, pYYd);
 			derivativeTrainingData.set(pX, pXd, pYYd);
 
 			//InfType::negativeLogMarginalLikelihood(logHyp, 
@@ -346,11 +390,13 @@ public:
 			sumNlZ += static_cast<GP::DlibScalar>(nlZ);
 		}
 
+		std::cout << ": " << sumNlZ << std::endl << std::endl;
 		return sumNlZ;
 	}
 
 	/** @brief		Update the GPMap with new observations */
-	void update()
+	void update(const Hyp		&logHyp,
+					const int		maxIter = 0)
 	{
 #ifdef _TEST_OCTREE_GPMAP
 		PCL_INFO("More than one points should be dangled in itself or neighbors.\n");
@@ -389,7 +435,7 @@ public:
 				LeafNode *pLeafNode = static_cast<LeafNode *>(iter.getCurrentOctreeNode());
 
 				// predict
-				//predict(indexList, min_pt, pLeafNode);
+				predict(logHyp, indexList, min_pt, pLeafNode, maxIter);
 			}
 		}
 		else
@@ -399,7 +445,9 @@ public:
 			// Future: collect all non-empty block centers to a set, add its neighbors to the set, then update all nodes in the set
 
 			// create empty neigboring blocks if necessary
-			createEmptyNeigboringBlocks();
+			PointXYZVListPtr pNonEmptyBlockCenterPointXYZList = createEmptyNeigboringBlocks();
+			size_t NUM_NON_EMPTY_BLOCKS = pNonEmptyBlockCenterPointXYZList->size();
+			std::cout << "Total: " << NUM_NON_EMPTY_BLOCKS << ": ";
 
 			// leaf node iterator
 			LeafNodeIterator iter(*this);
@@ -407,6 +455,7 @@ public:
 			// for each leaf node
 			Eigen::Vector3f min_pt;
 			std::vector<int> indexList;
+			size_t blockCount(0);
 			while(*++iter)
 			{
 				// key
@@ -450,13 +499,18 @@ public:
 #endif
 				// if the total number of points are too small, ignore it.
 				if(indexList.size() < MIN_NUM_POINTS_TO_PREDICT_) continue;
+				std::cout << blockCount << "(" << indexList.size() << "), ";
 
 				// leaf node
 				LeafNode *pLeafNode = static_cast<LeafNode *>(iter.getCurrentOctreeNode());
 
 				// predict
-				//predict(indexList, min_pt, pLeafNode);
+				predict(logHyp, indexList, min_pt, pLeafNode, maxIter);
+
+				// next
+				blockCount++;
 			}
+			std::cout << std::endl;
 		}
 	}
 
@@ -536,7 +590,7 @@ public:
 	/** @brief Get occupied cell centers */
 	size_t getOccupiedCellCenters(PointXYZVList		&cellCenterPointXYZVector,
 											const float			threshold,
-											const bool			fRemoveIsolatedCells) const
+											const bool			fRemoveIsolatedCells)
 	{
 		// clear the vector
 		cellCenterPointXYZVector.clear();
@@ -545,6 +599,7 @@ public:
 		LeafNodeIterator iter(*this);
 
 		// for each leaf node
+		Eigen::Vector3f min_pt;
 		VectorPtr pMean;
 		MatrixPtr pVariance;
 		while(*++iter)
@@ -560,23 +615,26 @@ public:
 
 			// mean, variance
 			pLeafNode->get(pMean, pVariance);
+			if(!pMean || !pVariance) continue;
 			if(pVariance->cols() != 1)
 			{
 				MatrixPtr pTempVariance(new Matrix(pVariance->rows(), 1));
 				pTempVariance->noalias() = pVariance->diagonal();
-				pVariance.reset(pTempVariance);
+				pVariance = pTempVariance;
 			}
 
 			// check if each cell is occupied
-			size_t i;
+			size_t row;
 			for(size_t ix = 0; ix < NUM_CELLS_PER_AXIS_; ix++)
 				for(size_t iy = 0; iy < NUM_CELLS_PER_AXIS_; iy++)
 					for(size_t iz = 0; iz < NUM_CELLS_PER_AXIS_; iz++)
-						if(isNotIsolatedCell(pMean, pVariance, ix, iy, iz, threshold, i, fRemoveIsolatedCells))
-							cellCenterPointXYZVector.push_back(pcl::PointXYZ(m_pXs(i, 0) + min_pt.x, 
-																							 m_pXs(i, 1) + min_pt.y,
-																							 m_pXs(i, 2) + min_pt.z));
+						if(isNotIsolatedCell(pMean, pVariance, ix, iy, iz, threshold, fRemoveIsolatedCells, row))
+							cellCenterPointXYZVector.push_back(pcl::PointXYZ((*m_pXs)(row, 0) + min_pt.x(), 
+																							 (*m_pXs)(row, 1) + min_pt.y(),
+																							 (*m_pXs)(row, 2) + min_pt.z()));
 		}
+
+		return cellCenterPointXYZVector.size();
 	}
 
 	/** @brief Get the total number of point indices stored in each voxel */
@@ -632,7 +690,8 @@ public:
      */
    double getResolution() const
    {
-		return Parent::getResolution();
+		//return Parent::getResolution();
+		return CELL_SIZE_;
    }
 
 	double getCellSize() const
@@ -859,18 +918,18 @@ protected:
 		point.z = static_cast<float>((static_cast<double>(key.z) + 0.5) * this->resolution_ + this->minZ_);
 	}
 
-	///** @brief		Generate an octree key for point
-	//  * @details	Refer to pcl::octree::OctreePointCloud<PointT, LeafT, BranchT, OctreeT>::genOctreeKeyforPoint (const PointT& point_arg, OctreeKey & key_arg)
-	//  *				which only accept PointT point, not pcl::PointXYZ.
-	//  *				Thus, even if the octree has pcl::PointNormals, the center point should also be pcl::PointXYZ.
-	//  */
-	//void genOctreeKeyforPointXYZ(const pcl::PointXYZ point, OctreeKey &key) const
-	//{
-	//	// calculate integer key for point coordinates
-	//	key.x = static_cast<unsigned int> ((point.x - this->minX_) / this->resolution_);
-	//	key.y = static_cast<unsigned int> ((point.y - this->minY_) / this->resolution_);
-	//	key.z = static_cast<unsigned int> ((point.z - this->minZ_) / this->resolution_);
-	//}
+	/** @brief		Generate an octree key for point
+	  * @details	Refer to pcl::octree::OctreePointCloud<PointT, LeafT, BranchT, OctreeT>::genOctreeKeyforPoint (const PointT& point_arg, OctreeKey & key_arg)
+	  *				which only accept PointT point, not pcl::PointXYZ.
+	  *				Thus, even if the octree has pcl::PointNormals, the center point should also be pcl::PointXYZ.
+	  */
+	void genOctreeKeyforPointXYZ(const pcl::PointXYZ &point, pcl::octree::OctreeKey &key) const
+	{
+		// calculate integer key for point coordinates
+		key.x = static_cast<unsigned int> ((point.x - this->minX_) / this->resolution_);
+		key.y = static_cast<unsigned int> ((point.y - this->minY_) / this->resolution_);
+		key.z = static_cast<unsigned int> ((point.z - this->minZ_) / this->resolution_);
+	}
 
 	/** @brief		Get the occupied voxel center points
 	  * @details	Refer to pcl::octree::OctreePointCloud<PointT, LeafT, BranchT, OctreeT>::getOccupiedVoxelCentersRecursive(const BranchNode* node_arg, const OctreeKey& key_arg, AlignedPointXYZVector &voxelCenterList_arg) const
@@ -952,14 +1011,14 @@ protected:
 
 	inline bool isCellNotOccupied(const VectorPtr &pMean, const MatrixPtr &pVariance, const size_t ix, const size_t iy, const size_t iz, const float threshold) const
 	{
-		const size_t idx(xyz2idx(NUM_CELLS_PER_AXIS_, ix, iy, iz));
-		return PLSC(pMean(idx), pVariance(idx, 0)) < threshold;
+		const size_t row(xyz2row(NUM_CELLS_PER_AXIS_, ix, iy, iz));
+		return PLSC((*pMean)(row), (*pVariance)(row, 0)) < threshold;
 	}
 
-	inline bool isNotIsolatedCell(const VectorPtr &pMean, const MatrixPtr &pVariance, const size_t ix, const size_t iy, const size_t iz, const float threshold, const bool fRemoveIsolatedCells, size_t &idx) const
+	inline bool isNotIsolatedCell(const VectorPtr &pMean, const MatrixPtr &pVariance, const size_t ix, const size_t iy, const size_t iz, const float threshold, const bool fRemoveIsolatedCells, size_t &row) const
 	{
 		// current index
-		idx = xyz2idx(NUM_CELLS_PER_AXIS_, ix, iy, iz);
+		row = xyz2row(NUM_CELLS_PER_AXIS_, ix, iy, iz);
 		
 		// check neighboring cells
 		if(fRemoveIsolatedCells)
@@ -987,14 +1046,17 @@ protected:
 	  *				Thus, prediction is done in OctreeGPMap not in LeafNode.
 	  *				But the result will be dangled to LeafNode for further BCM update.
 	  */
-	void predict(const Indices				&indexList, 
+	void predict(const Hyp					&logHyp,
+					 const Indices				&indexList, 
 					 Eigen::Vector3f			&min_pt,
-					 LeafNode					*pLeafNode)
+					 LeafNode					*pLeafNode,
+					 const int					maxIter)
 	{
 		// training data
 		DerivativeTrainingData derivativeTrainingData;
 		MatrixPtr pX, pXd; VectorPtr pYYd;
-		generateTraingData(input_, indexList, m_sensorPosition, m_gap, pX, pXd, pYYd);
+		//generateTraingData(input_, indexList, m_sensorPosition, m_gap, pX, pXd, pYYd);
+		generateTraingData(input_, indexList, m_gap, pX, pXd, pYYd);
 		derivativeTrainingData.set(pX, pXd, pYYd);
 
 		// test data
@@ -1005,31 +1067,31 @@ protected:
 		pXs->noalias() = (*m_pXs) + minValue.replicate(NUM_CELLS_PER_BLOCK_, 1);
 		testData.set(pXs);
 
-		// hyperparameters
-		const float ell(0.5f);
-		const float sigma_f(1.5f);
-		const float sigma_n(0.1f);
-		const float sigma_nd(0.2f);
-
-		Hyp		logHyp;
-		logHyp.cov(0) = log(ell);
-		logHyp.cov(1) = log(sigma_f);
-		logHyp.lik(0) = log(sigma_n);
-		logHyp.lik(1) = log(sigma_nd);
-
-#if EIGEN_VERSION_AT_LEAST(3,2,0)
 		// train
-		GPType::train<GP::BOBYQA, GP::NoStopping>(logHyp, derivativeTrainingData, 10000);
+		//Hyp localLogHyp(logHyp);
+		Hyp localLogHyp;
+		localLogHyp.mean = logHyp.mean;
+		localLogHyp.cov = logHyp.cov;
+		localLogHyp.lik = logHyp.lik;
+
+		if(maxIter > 0)
+			GPType::train<GP::BOBYQA, GP::NoStopping>(localLogHyp, derivativeTrainingData, maxIter);
 
 		// predict
-		GPType::predict(logHyp, derivativeTrainingData, testData, FLAG_INDEPENDENT_BCM_); // 5000
-		//GPType::predict(logHyp, derivativeTrainingData, testData, FLAG_INDEPENDENT_BCM_, pXs->rows());
-#else
-	#error
-#endif
+		try
+		{
+			// predict
+			GPType::predict(localLogHyp, derivativeTrainingData, testData, FLAG_INDEPENDENT_BCM_); // 5000
+			//GPType::predict(logHyp, derivativeTrainingData, testData, FLAG_INDEPENDENT_BCM_, pXs->rows());
 
-		// update
-		pLeafNode->update(testData.pMu(), testData.pSigma());
+			// update BCM
+			pLeafNode->update(testData.pMu(), testData.pSigma());
+		}
+		catch(GP::Exception &e)
+		{
+			std::cerr << e.what() << std::endl;
+		}
+
 	}
 
 protected:
@@ -1060,7 +1122,13 @@ protected:
 
 	/** @brief For generating empty points */
 	float				m_gap;
-	pcl::PointXYZ	m_sensorPosition;
+	//pcl::PointXYZ	m_sensorPosition;
+
+#ifndef CONST_LEAF_NODE_ITERATOR_
+	/** @brief Non empty block center points for training hyperparameters */
+	PointXYZVList	m_nonEmptyBlockCenterPointXYZList;
+	size_t			m_numRandomBlocks;
+#endif
 
 	/** @brief		Test inputs of a block whose minimum point is (0, 0, 0) */
 	MatrixPtr	m_pXs;

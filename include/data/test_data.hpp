@@ -6,17 +6,17 @@
 
 namespace GPMap {
 
-inline size_t xyz2idx(const size_t n, const size_t ix, const size_t iy, const size_t iz)
+inline size_t xyz2row(const size_t n, const size_t ix, const size_t iy, const size_t iz)
 {
 	return (ix*n*n + iy*n + iz);
 }
 
-inline void idx2xyz(const size_t n, size_t index, size_t &ix, size_t &iy, size_t &iz)
+inline void row2xyz(const size_t n, size_t row, size_t &ix, size_t &iy, size_t &iz)
 {
-	ix = static_cast<size_t>(static_cast<double>(index)/static_cast<double>(n*n));
-	index -= ix*n*n;
-	iy = static_cast<size_t>(static_cast<double>(index)/static_cast<double>(n));
-	iz = index - iy*n;
+	ix = static_cast<size_t>(static_cast<double>(row)/static_cast<double>(n*n));
+	row -= ix*n*n;
+	iy = static_cast<size_t>(static_cast<double>(row)/static_cast<double>(n));
+	iz = row - iy*n;
 }
 
 void meshGrid(const Eigen::Vector3f		&min_pt,

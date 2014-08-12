@@ -60,10 +60,10 @@ protected:
 };
 
 
-/** @brief Test for xyz2idx and idx2xyz */
+/** @brief Test for xyz2row and row2xyz */
 TEST_F(TestTestData, IndexTest)
 {
-	// idx2xyz
+	// row2xyz
 	// expected
 	size_t idx1 = 0;					// expected
 	size_t idx2, ix2, iy2, iz2;	// actual
@@ -73,12 +73,12 @@ TEST_F(TestTestData, IndexTest)
 		{
 			for(size_t iz1 = 0; iz1 < N; iz1++)
 			{
-				// xyz2idx
-				idx2 = xyz2idx(N, ix1, iy1, iz1); // actual
+				// xyz2row
+				idx2 = xyz2row(N, ix1, iy1, iz1); // actual
 				EXPECT_TRUE(idx1 == idx2);
 
-				// idx2xyz
-				idx2xyz(N, idx1, ix2, iy2, iz2); // actual
+				// row2xyz
+				row2xyz(N, idx1, ix2, iy2, iz2); // actual
 				EXPECT_TRUE(ix1 == ix2 && iy1 == iy2 && iz1 == iz2);
 
 				// next index
@@ -88,7 +88,7 @@ TEST_F(TestTestData, IndexTest)
 	}
 }
 
-/** @brief Test for xyz2idx and idx2xyz */
+/** @brief Test for xyz2row and row2xyz */
 TEST_F(TestTestData, DataTest)
 {
 	// actual

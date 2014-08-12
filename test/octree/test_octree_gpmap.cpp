@@ -1,6 +1,6 @@
-#if 0
+#if 1
 
-#define _TEST_OCTREE_GPMAP
+//#define _TEST_OCTREE_GPMAP
 
 // GPMap
 #include "io/io.hpp"								// loadPointClouds, savePointClouds, loadSensorPositionList
@@ -12,10 +12,12 @@
 #include "octree/octree_viewer.hpp"			// OctreeViewer
 using namespace GPMap;
 
+typedef OctreeGPMap<pcl::PointNormal, GP::MeanZeroDerObs, GP::CovSEisoDerObs, GP::LikGaussDerObs, GP::InfExactDerObs> OctreeGPMapType;
+
 int main(int argc, char**argv)
 {
 		// [1] load sensor positions
-		pcl::PointXYZ sensorPosition(7.2201273e-01, 2.5926464e-02, 1.6074278e-01);
+		//pcl::PointXYZ sensorPosition(7.2201273e-01, 2.5926464e-02, 1.6074278e-01);
 
 		// [2] load surface normals
 		PointNormalCloudPtr pPointNormalCloud(new PointNormalCloud());
@@ -57,21 +59,34 @@ int main(int argc, char**argv)
 		//show<pcl::PointNormal>("Cropped Bunny000", pointNormalCloudList, 0.01);		
 		
 		// [5] octree-based GPMap
-		const double		BLOCK_SIZE(0.01);
-		const size_t		NUM_CELLS_PER_AXIS(10);
-		const bool			INDEPENDENT_BCM(true); //INDEPENDENT_BCM(false)
-		const bool			POINT_DUPLICATION(false);
-		const float			GAP(0.001);
-		OctreeGPMap<pcl::PointNormal> gpmap(BLOCK_SIZE, NUM_CELLS_PER_AXIS, INDEPENDENT_BCM, POINT_DUPLICATION);
+		const double	BLOCK_SIZE				= 0.001; // 0.01
+		const size_t	NUM_CELLS_PER_AXIS	= 10;
+		const bool		INDEPENDENT_BCM		= true;
+		const bool		POINT_DUPLICATION		= false;
+		const float		GAP						= 0.001;
+		OctreeGPMapType gpmap(BLOCK_SIZE, NUM_CELLS_PER_AXIS, INDEPENDENT_BCM, POINT_DUPLICATION);
 		gpmap.defineBoundingBox(min_pt, max_pt);
 
-		// [7] observations
+		// [7] Update
+		// hyperparameters
+		const float ell			= 0.107467f;		// 0.107363f;
+		const float sigma_f		= 0.99968f;			//0.99985f;
+		const float sigma_n		= 0.00343017f;		// 0.0034282f;
+		const float sigma_nd		= 0.0985929f;		// 0.0990157f;
+		OctreeGPMapType::Hyp logHyp;
+		logHyp.cov(0) = log(ell);
+		logHyp.cov(1) = log(sigma_f);
+		logHyp.lik(0) = log(sigma_n);
+		logHyp.lik(1) = log(sigma_nd);
+
+		// for each observation
 		for(size_t i = 0; i < NUM_DATA; i++)
 		{
 			std::cout << "observation: " << i << std::endl;
-			gpmap.setInputCloud(pointNormalCloudList[i], GAP, sensorPosition);
+			gpmap.setInputCloud(pointNormalCloudList[i], GAP);
 			gpmap.addPointsFromInputCloud();
-			gpmap.update();
+			gpmap.update(logHyp);
+			OctreeViewer<pcl::PointNormal, OctreeGPMapType> octree_viewer(gpmap);
 		}
 
 		system("pause");

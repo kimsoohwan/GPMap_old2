@@ -6,68 +6,61 @@
 #include <pcl/point_cloud.h>		// pcl::PointCloud
 
 // GPMap
-#include "util/data_types.hpp"			// PointXYZVList, Matrix, MatrixPtr, Vector, VectorPtr
-#include "util/util.hpp"					// isFinite
-#include "features/surface_normal.hpp"	// norm
+#include "util/data_types.hpp"	// PointXYZVList, Matrix, MatrixPtr, Vector, VectorPtr
+#include "util/util.hpp"			// isFinite
 
 namespace GPMap {
 
-inline bool genEmptyPoint(const pcl::PointNormal	&pointNormal,
+template <typename PointT>
+inline void genEmptyPoint(const pcl::PointNormal	&surfaceNormal,
 								  const float					gap,
 								  pcl::PointXYZ				&emptyPoint)
 {
-	// assume the point normal is finite
-	if(!pcl::isFinite<pcl::PointNormal>(pointNormal)) return false;
-
-	// length
-	const float length = norm(pointNormal);
-
-	// factor
-	const float factor = gap/length;
-
-	// empty point
-	emptyPoint.x = pointNormal.x + factor*pointNormal.normal_x;
-	emptyPoint.y = pointNormal.y + factor*pointNormal.normal_y;
-	emptyPoint.z = pointNormal.z + factor*pointNormal.normal_z;
-
-	return true;
-}
-
-template <typename PointT>
-inline bool genEmptyPoint(const PointT				&hitPoint, 
-								  const pcl::PointXYZ	&sensorPosition, 
-								  const float				gap,							  
-								  pcl::PointXYZ			&emptyPoint)
-{
-	// check finite
-	if(!pcl::isFinite<PointT>(hitPoint) || 
-		!pcl::isFinite<pcl::PointXYZ>(sensorPosition))
-		return false;
-
+	// assume the surface normal vector to be a unit vector
+	emptyPoint
 	// vector from a hit point to the origin (sensorPosition)
 	pcl::PointXYZ P_O(sensorPosition.x - hitPoint.x,
 							sensorPosition.y - hitPoint.y,
 							sensorPosition.z - hitPoint.z);
-	const float length = sqrt(P_O.x*P_O.x + P_O.y*P_O.y + P_O.z*P_O.z);
-	if(length < std::numeric_limits<float>::epsilon()) return false;
-
-	// factor
-	const float factor = gap/length;
+	const float norm = sqrt(P_O.x*P_O.x + P_O.y*P_O.y + P_O.z*P_O.z);
+	P_O.x *= gap/norm;
+	P_O.y *= gap/norm;
+	P_O.z *= gap/norm;
 
 	// empty point
-	emptyPoint.x = hitPoint.x + factor*P_O.x;
-	emptyPoint.y = hitPoint.y + factor*P_O.y;
-	emptyPoint.z = hitPoint.z + factor*P_O.z;
+	emptyPoint.x = unitSurfaceNormal.x + gap*unitSurfaceNormal.normal_x;
+	emptyPoint.y = unitSurfaceNormal.y + gap*unitSurfaceNormal.normal_y;
+	emptyPoint.z = unitSurfaceNormal.z + gap*unitSurfaceNormal.normal_z;
+}
 
-	return true;
+
+template <typename PointT>
+inline void genEmptyPoint(const float				gap,
+								  const pcl::PointXYZ	&sensorPosition, 
+								  const PointT				&hitPoint, 
+								  pcl::PointXYZ			&emptyPoint)
+{
+	// vector from a hit point to the origin (sensorPosition)
+	pcl::PointXYZ P_O(sensorPosition.x - hitPoint.x,
+							sensorPosition.y - hitPoint.y,
+							sensorPosition.z - hitPoint.z);
+	const float norm = sqrt(P_O.x*P_O.x + P_O.y*P_O.y + P_O.z*P_O.z);
+	P_O.x *= gap/norm;
+	P_O.y *= gap/norm;
+	P_O.z *= gap/norm;
+
+	// empty point
+	emptyPoint.x = hitPoint.x + P_O.x;
+	emptyPoint.y = hitPoint.y + P_O.y;
+	emptyPoint.z = hitPoint.z + P_O.z;
 }
 
 /** @brief Generate empty points just before hit points */
 template <typename PointT>
 pcl::PointCloud<pcl::PointXYZ>::Ptr
-genEmptyPointCloud(const typename pcl::PointCloud<PointT>::ConstPtr		&pHitPointCloud,
+genEmptyPointCloud(const float														gap,
 						 const pcl::PointXYZ												&sensorPosition,
-						 const float														gap,						 
+						 const typename pcl::PointCloud<PointT>::ConstPtr		&pHitPointCloud,
 						 const IndicesConstPtr											&pIndices = IndicesConstPtr())
 {
 	// memory allocation
@@ -85,11 +78,10 @@ genEmptyPointCloud(const typename pcl::PointCloud<PointT>::ConstPtr		&pHitPointC
 			assert( (*iter >= 0) && (*iter < static_cast<int>(pHitPointCloud->points.size())));
 
 			// calculate empty point
-			if(genEmptyPoint(pHitPointCloud->points[*iter], sensorPosition, gap, emptyPoint))
-			{
-				// empty point
-				pEmptyPointCloud->push_back(emptyPoint);
-			}
+			genEmptyPoint(gap, sensorPosition, pHitPointCloud->points[*iter], emptyPoint);
+
+			// empty point
+			pEmptyPointCloud->push_back(emptyPoint);
 		}
 	}
 	else
@@ -98,11 +90,10 @@ genEmptyPointCloud(const typename pcl::PointCloud<PointT>::ConstPtr		&pHitPointC
 		for(size_t i = 0; i < pHitPointCloud->size(); i++)
 		{
 			// calculate empty point
-			if(genEmptyPoint(pHitPointCloud->points[i], sensorPosition, gap, emptyPoint))
-			{
-				// empty point
-				pEmptyPointCloud->push_back(emptyPoint);
-			}
+			genEmptyPoint(gap, sensorPosition, pHitPointCloud->points[i], emptyPoint);
+
+			// empty point
+			pEmptyPointCloud->push_back(emptyPoint);
 		}
 	}
 
@@ -111,9 +102,9 @@ genEmptyPointCloud(const typename pcl::PointCloud<PointT>::ConstPtr		&pHitPointC
 
 /** @brief Generate empty points just before hit points */
 template <typename PointT>
-void genEmptyPointCloudList(const std::vector<typename pcl::PointCloud<PointT>::Ptr>		&hitPointCloudList,
-									 const PointXYZVList															&sensorPositionList,
-									 const float																	gap,								 
+void genEmptyPointCloudList(const float																	gap,
+									 const PointXYZVList														&sensorPositionList,
+									 const std::vector<typename pcl::PointCloud<PointT>::Ptr>		&hitPointCloudList,
 									 PointXYZCloudPtrList														&emptyPointCloudList)
 {
 	// size check
@@ -122,7 +113,7 @@ void genEmptyPointCloudList(const std::vector<typename pcl::PointCloud<PointT>::
 
 	// for each hit point cloud, create an empty point list
 	for(size_t i = 0; i < hitPointCloudList.size(); i++)
-		emptyPointCloudList.push_back(genEmptyPointCloud<PointT>(hitPointCloudList[i], sensorPositionList[i], gap));
+		emptyPointCloudList.push_back(genEmptyPointCloud<PointT>(gap, sensorPositionList[i], hitPointCloudList[i]));
 }
 
 /** @brief Generate empty points just before hit points */
@@ -142,42 +133,6 @@ void combinePointCloudList(const PointXYZCloudPtrList		&pointCloudList1,
 	}
 }
 
-template <typename NormalT>
-size_t numFiniteNormals(const pcl::PointCloud<NormalT>	&pointCloud,
-							  const Indices							&indices)
-{
-	size_t count(0);
-	for(Indices::const_iterator iter = indices.begin(); iter != indices.end(); ++iter)
-	{
-		// index
-		assert(*iter >= 0 && *iter < static_cast<int>(pointCloud.points.size()));
-
-		// check finite
-		if(pcl::isFinite<NormalT>(pointCloud.points[*iter])) count++;
-	}
-	
-	return count;
-}
-
-template <typename PointT>
-size_t numFiniteNormals(const pcl::PointCloud<PointT>		&pointCloud,
-							   const Indices							&indices,
-								const pcl::PointXYZ					&sensorPosition)
-{
-	size_t count(0);
-	pcl::PointXYZ dummyEmptyPoint;
-	for(Indices::const_iterator iter = indices.begin(); iter != indices.end(); ++iter)
-	{
-		// index
-		assert(*iter >= 0 && *iter < static_cast<int>(pointCloud.points.size()));
-
-		// check finite
-		if(genEmptyPoint<PointT>(pointCloud.points[*iter], sensorPosition, 1.0, dummyEmptyPoint)) count++;
-	}
-	
-	return count;
-}
-
 /** @brief	Generate training data from a surface normal cloud and a sensor position
   * @Todo	Optimization or using getMatrixXfMap()
   */
@@ -187,6 +142,8 @@ void generateTraingData(const PointNormalCloudConstPtr		&pPointNormalCloud,
 								const float									gap,
 								MatrixPtr &pX, MatrixPtr &pXd, VectorPtr &pYYd)
 {
+	// assume all surface normals are finite
+
 	// K: NN by NN, NN = N + Nd*D
 	// 
 	// for example, when D = 3
@@ -199,10 +156,10 @@ void generateTraingData(const PointNormalCloudConstPtr		&pPointNormalCloud,
 	// df(xd)/dx_3 : Nd |   -  |      - ,          - ,        D3D3
 
 	// some constants
-	const bool fCreateEmptyPoint(gap > 0.f);	// create empty points or not
 	const size_t D = 3;								// number of dimensions
-	const size_t N  = numFiniteNormals(*pPointNormalCloud, indices, sensorPosition);		// hit points, empty points
-	const size_t Nd = N;																						// surface normals
+	const size_t N = indices.size();				// hit points, empty points
+	const size_t Nd = N;								// surface normals
+	const bool fCreateEmptyPoint(gap > 0.f);	// create empty points or not
 
 	// memory allocation
 	if(fCreateEmptyPoint)
@@ -229,7 +186,13 @@ void generateTraingData(const PointNormalCloudConstPtr		&pPointNormalCloud,
 		const pcl::PointNormal &pointNormal(pPointNormalCloud->points[*iter]);
 
 		// check finite
-		if(!genEmptyPoint<pcl::PointNormal>(pointNormal, sensorPosition, gap, emptyPoint)) continue;
+		assert(pcl_isfinite(pointNormal.x) &&
+				 pcl_isfinite(pointNormal.y) &&
+				 pcl_isfinite(pointNormal.z) &&
+				 pcl_isfinite(pointNormal.normal_x) &&
+				 pcl_isfinite(pointNormal.normal_y) &&
+				 pcl_isfinite(pointNormal.normal_z) &&
+				 pointNormal.curvature > 0);
 
 		// hit point
 		(*pX)(i, 0)		= pointNormal.x;
@@ -240,6 +203,7 @@ void generateTraingData(const PointNormalCloudConstPtr		&pPointNormalCloud,
 		if(fCreateEmptyPoint)
 		{
 			// empty point
+			genEmptyPoint(gap, sensorPosition, pointNormal, emptyPoint);
 			(*pX)(N+i, 0)	= emptyPoint.x;
 			(*pX)(N+i, 1)	= emptyPoint.y;
 			(*pX)(N+i, 2)	= emptyPoint.z;
@@ -276,6 +240,8 @@ void generateTraingData(const PointNormalCloudConstPtr		&pPointNormalCloud,
 								const float									gap,
 								MatrixPtr &pX, MatrixPtr &pXd, VectorPtr &pYYd)
 {
+	// assume all surface normals are finite
+
 	// K: NN by NN, NN = N + Nd*D
 	// 
 	// for example, when D = 3
@@ -288,10 +254,10 @@ void generateTraingData(const PointNormalCloudConstPtr		&pPointNormalCloud,
 	// df(xd)/dx_3 : Nd |   -  |      - ,          - ,        D3D3
 
 	// some constants
-	const bool fCreateEmptyPoint(gap > 0.f);	// create empty points or not
 	const size_t D = 3;								// number of dimensions
-	const size_t N = numFiniteNormals(*pPointNormalCloud, indices);	// hit points, empty points
-	const size_t Nd = N;															// surface normals
+	const size_t N = indices.size();				// hit points, empty points
+	const size_t Nd = N;								// surface normals
+	const bool fCreateEmptyPoint(gap > 0.f);	// create empty points or not
 
 	// memory allocation
 	if(fCreateEmptyPoint)
@@ -318,7 +284,13 @@ void generateTraingData(const PointNormalCloudConstPtr		&pPointNormalCloud,
 		const pcl::PointNormal &pointNormal(pPointNormalCloud->points[*iter]);
 
 		// check finite
-		if(!pcl::isFinite<pcl::PointNormal>(pointNormal)) continue;
+		assert(pcl_isfinite(pointNormal.x) &&
+				 pcl_isfinite(pointNormal.y) &&
+				 pcl_isfinite(pointNormal.z) &&
+				 pcl_isfinite(pointNormal.normal_x) &&
+				 pcl_isfinite(pointNormal.normal_y) &&
+				 pcl_isfinite(pointNormal.normal_z) &&
+				 pointNormal.curvature > 0);
 
 		// hit point
 		(*pX)(i, 0)		= pointNormal.x;
@@ -329,7 +301,7 @@ void generateTraingData(const PointNormalCloudConstPtr		&pPointNormalCloud,
 		if(fCreateEmptyPoint)
 		{
 			// empty point
-			genEmptyPoint(pointNormal, gap, emptyPoint);
+			genEmptyPoint(gap, sensorPosition, pointNormal, emptyPoint);
 			(*pX)(N+i, 0)	= emptyPoint.x;
 			(*pX)(N+i, 1)	= emptyPoint.y;
 			(*pX)(N+i, 2)	= emptyPoint.z;

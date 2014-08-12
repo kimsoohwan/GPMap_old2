@@ -37,18 +37,20 @@ public:
 		  m_pOriginalPointCloud(octree.getInputCloud()),
 		  m_octree(octree),
 		  m_pVoxelCenterPointCloud(new pcl::PointCloud<pcl::PointXYZ>()),
-		  m_fDrawWithCubesOrCenterPoints(true),
+		  m_fDrawWithCubesOrCenterPoints(false),
 		  m_fDisplayOriginalPointsWithCubes(true),
-		  m_fWireframe(true)
+		  m_fWireframe(true),
+		  m_occupancyThreshold(0.9f)
 	{		
 		//register keyboard callbacks
 		viz.registerKeyboardCallback(&OctreeViewer::keyboardEventOccurred, *this, 0);
 		
 		//key legends
-		viz.addText("Keys:", 0, 170, 0.0, 1.0, 0.0, "keys_t");
-		viz.addText("c -> Toggle Point/Cube representation", 10, 155, 0.0, 1.0, 0.0, "key_d_t");
-		viz.addText("p -> Show/Hide original cloud", 10, 140, 0.0, 1.0, 0.0, "key_x_t");
-		viz.addText("s/w -> Surface/Wireframe representation", 10, 125, 0.0, 1.0, 0.0, "key_sw_t");
+		viz.addText("Keys:",														 0, 170, 0.0, 1.0, 0.0, "keys_t");
+		viz.addText("c -> Toggle Point/Cube representation",			10, 155, 0.0, 1.0, 0.0, "key_d_t");
+		viz.addText("p -> Show/Hide original cloud",						10, 140, 0.0, 1.0, 0.0, "key_x_t");
+		viz.addText("s/w -> Surface/Wireframe representation",		10, 125, 0.0, 1.0, 0.0, "key_sw_t");
+		viz.addText("+/- -> Increase/decrease occupancy threshold", 10, 110, 0.0, 1.0, 0.0, "key_th_t");
 		
 		//show m_octree at default depth
 		extractCenterPoints();
@@ -70,6 +72,8 @@ public:
 		else if	(event.getKeySym() == "p" && event.keyDown())	{ m_fDisplayOriginalPointsWithCubes = !m_fDisplayOriginalPointsWithCubes; update(); }
 		else if	(event.getKeySym() == "w" && event.keyDown())	{ if(!m_fWireframe)	m_fWireframe = true;		update(); }
 		else if	(event.getKeySym() == "s" && event.keyDown())	{ if(m_fWireframe)	m_fWireframe = false;	update(); }
+		else if	(event.getKeySym() == "+" && event.keyDown())	{ m_occupancyThreshold += 0.02;	extractCenterPoints(); }
+		else if	(event.getKeySym() == "-" && event.keyDown())	{ m_occupancyThreshold -= 0.02;	extractCenterPoints(); }
 	}
 	
 	
@@ -102,6 +106,11 @@ public:
 		// original points
 		viz.removeShape("org_t");
 		if (m_fDisplayOriginalPointsWithCubes) viz.addText("Displaying original cloud", 0, 30, 1.0, 0.0, 0.0, "org_t");
+
+		// threshold
+		viz.removeShape("thld_t");
+		sprintf(size, "Threshold: %.2f", m_occupancyThreshold);
+		viz.addText(size, 0, 15, 1.0, 0.0, 0.0, "thld_t");
 	}
 
 	/* @brief Visual update. Create visualizations and add them to the viewer */
@@ -228,7 +237,8 @@ public:
 #if 1
 		// voxel centers
 		//m_octree.getOccupiedVoxelCenters(m_pVoxelCenterPointCloud->points, true);
-		m_octree.getOccupiedVoxelCenters(m_pVoxelCenterPointCloud->points, false);
+		//m_octree.getOccupiedVoxelCenters(m_pVoxelCenterPointCloud->points, false);
+		m_octree.getOccupiedCellCenters(m_pVoxelCenterPointCloud->points, m_occupancyThreshold, true);
 #else
 		// clear
 		m_pVoxelCenterPointCloud->clear();
@@ -276,6 +286,9 @@ protected:
 	
 	//bool to decide if we display points or cubes
 	bool m_fDrawWithCubesOrCenterPoints, m_fDisplayOriginalPointsWithCubes, m_fWireframe;
+
+	// threshold
+	float m_occupancyThreshold;
 };
 
 }

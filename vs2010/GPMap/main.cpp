@@ -1,4 +1,4 @@
-#if 1
+#if 0
 
 // GPMap
 #include "io/io.hpp"								// loadPointClouds, savePointClouds, loadSensorPositionList
@@ -35,7 +35,7 @@ int main(int argc, char** argv)
 	// [?] load/save empty points
 	//const float GAP = 0.0001;
 	//PointXYZCloudPtrList emptyPointCloudList;
-	//genEmptyPointCloudList<pcl::PointXYZ>(GAP, sensorPositionList, hitPointCloudList, emptyPointCloudList);
+	//genEmptyPointCloudList<pcl::PointXYZ>(hitPointCloudList, sensorPositionList, GAP, emptyPointCloudList);
 	//savePointClouds<pcl::PointXYZ>(emptyPointCloudList, strFileNames, strInputDataFolder, "_empty_points.pcd");		// original pcd files which are transformed in global coordinates
 	//loadPointClouds<pcl::PointXYZ>(emptyPointCloudList, strFileNames, strInputDataFolder, "_empty_points.pcd");		// original pcd files which are transformed in global coordinates
 	//PointXYZCloudPtrList hitEmptyPointCloudList;
@@ -64,42 +64,44 @@ int main(int argc, char** argv)
 
 	// [7] observation 1
 	const float GAP = 0.001; // 0.0001
-	gpmap.setInputCloud(pointNormalCloudList[0], GAP, sensorPositionList[0]);
+	//gpmap.setInputCloud(pointNormalCloudList[0], GAP, sensorPositionList[0]);
+	gpmap.setInputCloud(pointNormalCloudList[0], GAP);
 	gpmap.addPointsFromInputCloud();
 	OctreeViewer<pcl::PointNormal, OctreeGPMapType> octree_viewer1(gpmap);
 
-	// train
-	const int MAX_ITER = 1000;
-	const float ell(0.001f), sigma_f(1.f), sigma_n(0.01f), sigma_nd(0.1f);
+	// hyperparameters
+	//const float ell(0.1f), sigma_f(1.f), sigma_n(0.01f), sigma_nd(0.1f);
+	const float ell			= 0.107467f;		// 0.107363f;
+	const float sigma_f		= 0.99968f;			//0.99985f;
+	const float sigma_n		= 0.00343017f;		// 0.0034282f;
+	const float sigma_nd		= 0.0985929f;		// 0.0990157f;
 	OctreeGPMapType::Hyp logHyp;
 	logHyp.cov(0) = log(ell);
 	logHyp.cov(1) = log(sigma_f);
 	logHyp.lik(0) = log(sigma_n);
 	logHyp.lik(1) = log(sigma_nd);
-	gpmap.train(logHyp, MAX_ITER);
-	std::cout << "hyp.mean = " << std::endl << logHyp.mean.array().exp().matrix() << std::endl << std::endl;
-	std::cout << "hyp.cov = "  << std::endl << logHyp.cov.array().exp().matrix()  << std::endl << std::endl;
-	std::cout << "hyp.lik = "  << std::endl << logHyp.lik.array().exp().matrix()  << std::endl << std::endl;
 
-	system("pause");
-
-	gpmap.update();
+	// train
+	//const int MAX_ITER = 100;
+	//const int NUM_RANDOM_BLOCKS = 100;
+	//int MAX_ITER;
+	//size_t NUM_RANDOM_BLOCKS;
+	//std::cout << "Train - Max Iterations: ";	std::cin >> MAX_ITER;
+	//std::cout << "Train - Num Random Blocks: ";	std::cin >> NUM_RANDOM_BLOCKS;
+	//gpmap.train(logHyp, MAX_ITER, NUM_RANDOM_BLOCKS);
+	gpmap.update(logHyp);
 	OctreeViewer<pcl::PointNormal, OctreeGPMapType> octree_viewer2(gpmap);
 
-	// [7] observations 2
-	gpmap.setInputCloud(pointNormalCloudList[1], GAP, sensorPositionList[1]);
-	gpmap.addPointsFromInputCloud();
-	gpmap.update();
-	OctreeViewer<pcl::PointNormal, OctreeGPMapType> octree_viewer3(gpmap);
-	
-	//// [7] observations 
-	//for(size_t i = 0; i < NUM_DATA; i++)
-	//{
-	//	gpmap.setInputCloud(pointNormalCloudList[i], GAP, sensorPositionList[i]);
-	//	gpmap.addPointsFromInputCloud();
-	//	gpmap.update();
-	//	OctreeViewer<pcl::PointNormal, OctreeGPMapType> octree_viewer(gpmap);
-	//}
+	// [7] observations 
+	for(size_t i = 0; i < NUM_DATA; i++)
+	{
+		std::cout << "Dataset i = " << i << std::endl;
+		//gpmap.setInputCloud(pointNormalCloudList[i], GAP, sensorPositionList[i]);
+		gpmap.setInputCloud(pointNormalCloudList[i], GAP);
+		gpmap.addPointsFromInputCloud();
+		gpmap.update(logHyp);
+		OctreeViewer<pcl::PointNormal, OctreeGPMapType> octree_viewer(gpmap);
+	}
 
 	system("pause");
 }

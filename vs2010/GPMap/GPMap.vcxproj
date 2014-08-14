@@ -91,6 +91,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\include\bcm\bcm.hpp" />
+    <ClInclude Include="..\..\include\bcm\bcm_serializable.hpp" />
     <ClInclude Include="..\..\include\common\common.hpp" />
     <ClInclude Include="..\..\include\data\test_data.hpp" />
     <ClInclude Include="..\..\include\data\training_data.hpp" />

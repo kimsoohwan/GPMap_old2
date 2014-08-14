@@ -114,6 +114,9 @@
     <ClInclude Include="..\..\include\util\log.hpp">
       <Filter>src\util</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\include\bcm\bcm_serializable.hpp">
+      <Filter>src\bcm</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\test\octree\test_octree_gpmap.cpp">

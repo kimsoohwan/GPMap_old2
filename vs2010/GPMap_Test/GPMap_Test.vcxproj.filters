@@ -21,11 +21,11 @@
     <ClInclude Include="..\..\test\bcm\test_bcm.hpp">
       <Filter>test\bcm</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\test\bcm\test_bcm_serialization.hpp">
-      <Filter>test\bcm</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\test\serialization\test_eigen_serialization.hpp">
       <Filter>test\serialization</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\test\bcm\test_bcm_serializable.hpp">
+      <Filter>test\bcm</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

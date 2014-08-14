@@ -8,10 +8,11 @@
 #include "bcm/bcm.hpp"
 using namespace GPMap;
 
-class TestBCMData
+class TestBCM : public ::testing::Test,
+					 public BCM
 {
 public:
-	TestBCMData()
+	TestBCM()
 		: EPS_SOLVER(1e-5f),
 		  D(4),
 		  pMean1(new Vector(D)), pMean2(new Vector(D)), pMean3(new Vector(D)),
@@ -116,12 +117,6 @@ protected:
 	VectorPtr pMeanByCovFinal;
 	MatrixPtr pVarFinal;
 	VectorPtr pMeanByVarFinal;
-};
-
-class TestBCM : public ::testing::Test,
-					 public TestBCMData,
-					 public BCM
-{
 };
 
 /** @brief Update by mean vectors and covariance matrices */

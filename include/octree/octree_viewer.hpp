@@ -50,7 +50,7 @@ public:
 		viz.addText("c -> Toggle Point/Cube representation",			10, 155, 0.0, 1.0, 0.0, "key_d_t");
 		viz.addText("p -> Show/Hide original cloud",						10, 140, 0.0, 1.0, 0.0, "key_x_t");
 		viz.addText("s/w -> Surface/Wireframe representation",		10, 125, 0.0, 1.0, 0.0, "key_sw_t");
-		viz.addText("+/- -> Increase/decrease occupancy threshold", 10, 110, 0.0, 1.0, 0.0, "key_th_t");
+		viz.addText("i/k -> Increase/decrease occupancy threshold", 10, 110, 0.0, 1.0, 0.0, "key_th_t");
 		
 		//show m_octree at default depth
 		extractCenterPoints();
@@ -65,15 +65,18 @@ public:
 
   //========================================================
 
-	/* @brief Callback to interact with the keyboard */
+	/* @brief		Callback to interact with the keyboard 
+	 * @details		j: screeshot
+	 */
+
 	void keyboardEventOccurred(const pcl::visualization::KeyboardEvent &event, void *)
 	{
 		if			(event.getKeySym() == "c" && event.keyDown())	{ m_fDrawWithCubesOrCenterPoints = !m_fDrawWithCubesOrCenterPoints; update(); }
 		else if	(event.getKeySym() == "p" && event.keyDown())	{ m_fDisplayOriginalPointsWithCubes = !m_fDisplayOriginalPointsWithCubes; update(); }
 		else if	(event.getKeySym() == "w" && event.keyDown())	{ if(!m_fWireframe)	m_fWireframe = true;		update(); }
 		else if	(event.getKeySym() == "s" && event.keyDown())	{ if(m_fWireframe)	m_fWireframe = false;	update(); }
-		else if	(event.getKeySym() == "+" && event.keyDown())	{ m_occupancyThreshold += 0.02;	extractCenterPoints(); }
-		else if	(event.getKeySym() == "-" && event.keyDown())	{ m_occupancyThreshold -= 0.02;	extractCenterPoints(); }
+		else if	(event.getKeySym() == "l" && event.keyDown())	{ m_occupancyThreshold += 0.02;	extractCenterPoints(); }
+		else if	(event.getKeySym() == "k" && event.keyDown())	{ m_occupancyThreshold -= 0.02;	extractCenterPoints(); }
 	}
 	
 	

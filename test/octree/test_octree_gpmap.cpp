@@ -1,8 +1,9 @@
-#if 1
+#if 0
 
-//#define _TEST_OCTREE_GPMAP
+#define _TEST_OCTREE_GPMAP
 
 // GPMap
+#include "serialization/eigen_serialization.hpp" // Eigen
 #include "io/io.hpp"								// loadPointClouds, savePointClouds, loadSensorPositionList
 #include "visualization/cloud_viewer.hpp"	// show
 #include "data/training_data.hpp"			// genEmptyPointList
@@ -10,12 +11,15 @@
 #include "common/common.hpp"					// getMinMaxPointXYZ
 #include "octree/octree_gpmap.hpp"			// OctreeGPMap
 #include "octree/octree_viewer.hpp"			// OctreeViewer
+#include "octomap/octomap.hpp"				// Octomap
 using namespace GPMap;
 
 typedef OctreeGPMap<pcl::PointNormal, GP::MeanZeroDerObs, GP::CovSEisoDerObs, GP::LikGaussDerObs, GP::InfExactDerObs> OctreeGPMapType;
 
 int main(int argc, char**argv)
 {
+	Octomap o;
+
 		// [1] load sensor positions
 		//pcl::PointXYZ sensorPosition(7.2201273e-01, 2.5926464e-02, 1.6074278e-01);
 
@@ -59,8 +63,9 @@ int main(int argc, char**argv)
 		//show<pcl::PointNormal>("Cropped Bunny000", pointNormalCloudList, 0.01);		
 		
 		// [5] octree-based GPMap
-		const double	BLOCK_SIZE				= 0.001; // 0.01
-		const size_t	NUM_CELLS_PER_AXIS	= 10;
+		// x:0.07, y:0.1 z:0.15
+		const double	BLOCK_SIZE				= 0.003; // 0.01
+		const size_t	NUM_CELLS_PER_AXIS	= 3;		// cell size: 0.001
 		const bool		INDEPENDENT_BCM		= true;
 		const bool		POINT_DUPLICATION		= false;
 		const float		GAP						= 0.001;
@@ -83,7 +88,8 @@ int main(int argc, char**argv)
 		for(size_t i = 0; i < NUM_DATA; i++)
 		{
 			std::cout << "observation: " << i << std::endl;
-			gpmap.setInputCloud(pointNormalCloudList[i], GAP);
+			//gpmap.setInputCloud(pointNormalCloudList[i], GAP);
+			gpmap.setInputCloud(pointNormalCloudList[i]);
 			gpmap.addPointsFromInputCloud();
 			gpmap.update(logHyp);
 			OctreeViewer<pcl::PointNormal, OctreeGPMapType> octree_viewer(gpmap);

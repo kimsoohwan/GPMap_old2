@@ -15,8 +15,9 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\test\bcm\test_bcm.hpp" />
+    <ClInclude Include="..\..\test\bcm\test_bcm_serialization.hpp" />
     <ClInclude Include="..\..\test\data\test_test_data.hpp" />
-    <ClInclude Include="..\..\test\octree\test_octree_gpmap.hpp" />
+    <ClInclude Include="..\..\test\serialization\test_eigen_serialization.hpp" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{E90410CE-2959-4AD0-9471-E9D20A5ACA90}</ProjectGuid>

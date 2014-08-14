@@ -6,9 +6,6 @@
 #include <vector>
 #include <fstream>
 
-// Boost
-#include <boost/filesystem.hpp>
-
 // PCL
 #include <pcl/point_types.h>		// pcl::PointXYZ, pcl::Normal, pcl::PointNormal
 #include <pcl/point_cloud.h>		// pcl::PointCloud
@@ -19,6 +16,7 @@
 
 // GPMap
 #include "util/data_types.hpp"		// PointXYZVList
+#include "util/filesystem.hpp"		// fileExtension
 
 namespace GPMap {
 
@@ -27,17 +25,14 @@ int loadPointCloud(const std::string								&strFilePath,
 						 typename pcl::PointCloud<PointT>::Ptr		&pCloud, 
 						 const bool											fAccumulation = false)
 {
-	// boost path
-	boost::filesystem::path p(strFilePath);
-
 	// point cloud
 	typename pcl::PointCloud<PointT>::Ptr pTempCloud(new pcl::PointCloud<PointT>());
 
 	// load the file based on the file extension
 	int result = -2;
-	const std::string fileExtension(p.extension().string());
-	if(fileExtension.compare(".pcd") == 0)		result = pcl::io::loadPCDFile<PointT>(strFilePath.c_str(), *pTempCloud);
-	if(fileExtension.compare(".ply") == 0)		result = pcl::io::loadPLYFile<PointT>(strFilePath.c_str(), *pTempCloud);
+	const std::string strFileExtension(fileExtension(strFilePath));
+	if(strFileExtension.compare(".pcd") == 0)		result = pcl::io::loadPCDFile<PointT>(strFilePath.c_str(), *pTempCloud);
+	if(strFileExtension.compare(".ply") == 0)		result = pcl::io::loadPLYFile<PointT>(strFilePath.c_str(), *pTempCloud);
 	
 
 	// error 
@@ -73,16 +68,13 @@ void savePointCloud(const std::string												&strFilePath,
 						  const typename pcl::PointCloud<PointT>::ConstPtr		&pCloud,
 						  const bool														fBinary = true)
 {
-	// boost path
-	boost::filesystem::path p(strFilePath);
-
 	// point cloud
 	typename pcl::PointCloud<PointT>::Ptr pTempCloud(new pcl::PointCloud<PointT>());
 
 	// save the file based on the file extension
-	const std::string fileExtension(p.extension().string());
-	if(fileExtension.compare(".pcd") == 0)		pcl::io::savePCDFile<PointT>(strFilePath.c_str(), *pCloud, fBinary);
-	if(fileExtension.compare(".ply") == 0)		pcl::io::savePLYFile<PointT>(strFilePath.c_str(), *pCloud, fBinary);
+	const std::string strFileExtension(fileExtension(strFilePath));
+	if(strFileExtension.compare(".pcd") == 0)		pcl::io::savePCDFile<PointT>(strFilePath.c_str(), *pCloud, fBinary);
+	if(strFileExtension.compare(".ply") == 0)		pcl::io::savePLYFile<PointT>(strFilePath.c_str(), *pCloud, fBinary);
 }
 
 template <typename PointT>

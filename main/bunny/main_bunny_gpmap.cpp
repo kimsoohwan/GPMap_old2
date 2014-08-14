@@ -1,6 +1,7 @@
 #if 0
 
 // GPMap
+#include "serialization/eigen_serialization.hpp" // Eigen
 #include "io/io.hpp"								// loadPointClouds, savePointClouds, loadSensorPositionList
 #include "visualization/cloud_viewer.hpp"	// show
 #include "data/training_data.hpp"			// genEmptyPointList
@@ -22,30 +23,31 @@ int main(int argc, char** argv)
 	StringList strFileNames(strFilenames_, strFilenames_ + NUM_DATA); 
 
 	// [1] load/save hit points
-	//PointXYZCloudPtrList hitPointCloudList;
-	//loadPointClouds<pcl::PointXYZ>(hitPointCloudList, strFileNames, strInputDataFolder, ".ply");					// original ply files which are transformed in global coordinates
-	//savePointClouds<pcl::PointXYZ>(hitPointCloudList, strFileNames, strInputDataFolder, ".pcd");		// original pcd files which are transformed in global coordinates
-	//loadPointClouds<pcl::PointXYZ>(hitPointCloudList, strFileNames, strInputDataFolder, ".pcd");		// original pcd files which are transformed in global coordinates
-	//show<pcl::PointXYZ>("Hit Points", hitPointCloudList);
+	//PointXYZCloudPtrList hitPointCloudPtrList;
+	//loadPointClouds<pcl::PointXYZ>(hitPointCloudPtrList, strFileNames, strInputDataFolder, ".ply");					// original ply files which are transformed in global coordinates
+	//savePointClouds<pcl::PointXYZ>(hitPointCloudPtrList, strFileNames, strInputDataFolder, ".pcd");		// original pcd files which are transformed in global coordinates
+	//loadPointClouds<pcl::PointXYZ>(hitPointCloudPtrList, strFileNames, strInputDataFolder, ".pcd");		// original pcd files which are transformed in global coordinates
+	//show<pcl::PointXYZ>("Hit Points", hitPointCloudPtrList);
 
 	// [2] load sensor positions
-	PointXYZVList sensorPositionList;
-	loadSensorPositionList(sensorPositionList, strFileNames, strInputDataFolder, "_camera_position.txt");
+	//PointXYZVList sensorPositionList;
+	//loadSensorPositionList(sensorPositionList, strFileNames, strInputDataFolder, "_camera_position.txt");
+	//assert(NUM_DATA == hitPointCloudPtrList.size() && NUM_DATA == sensorPositionList.size());
 
 	// [?] load/save empty points
 	//const float GAP = 0.0001;
 	//PointXYZCloudPtrList emptyPointCloudList;
-	//genEmptyPointCloudList<pcl::PointXYZ>(hitPointCloudList, sensorPositionList, GAP, emptyPointCloudList);
+	//genEmptyPointCloudList<pcl::PointXYZ>(hitPointCloudPtrList, sensorPositionList, GAP, emptyPointCloudList);
 	//savePointClouds<pcl::PointXYZ>(emptyPointCloudList, strFileNames, strInputDataFolder, "_empty_points.pcd");		// original pcd files which are transformed in global coordinates
 	//loadPointClouds<pcl::PointXYZ>(emptyPointCloudList, strFileNames, strInputDataFolder, "_empty_points.pcd");		// original pcd files which are transformed in global coordinates
 	//PointXYZCloudPtrList hitEmptyPointCloudList;
-	//combinePointCloudList(hitPointCloudList, emptyPointCloudList, hitEmptyPointCloudList);
+	//combinePointCloudList(hitPointCloudPtrList, emptyPointCloudList, hitEmptyPointCloudList);
 	//show<pcl::PointXYZ>("Hit/Empty Points", hitEmptyPointCloudList);
 
 	// [4] load/save surface normals
 	PointNormalCloudPtrList pointNormalCloudList;
-	////estimateSurfaceNormals<ByNearestNeighbors>(hitPointCloudList, sensorPositionList, false, 0.01, pointNormalCloudList);
-	//estimateSurfaceNormals<ByMovingLeastSquares>(hitPointCloudList, sensorPositionList, false, 0.01, pointNormalCloudList);
+	////estimateSurfaceNormals<ByNearestNeighbors>(hitPointCloudPtrList, sensorPositionList, false, 0.01, pointNormalCloudList);
+	//estimateSurfaceNormals<ByMovingLeastSquares>(hitPointCloudPtrList, sensorPositionList, false, 0.01, pointNormalCloudList);
 	//savePointClouds<pcl::PointNormal>(pointNormalCloudList, strFileNames, strInputDataFolder, "_normals.pcd");		// original pcd files which are transformed in global coordinates
 	loadPointClouds<pcl::PointNormal>(pointNormalCloudList, strFileNames, strInputDataFolder, "_normals.pcd");		// original pcd files which are transformed in global coordinates
 	//show<pcl::PointNormal>("Surface Normals", pointNormalCloudList, 0.005, true, 0.001);
@@ -55,8 +57,8 @@ int main(int argc, char** argv)
 	getMinMaxPointXYZ<pcl::PointNormal>(pointNormalCloudList, min_pt, max_pt);
 
 	// [6] octree-based GPMap
-	const double	BLOCK_SIZE = 0.01; // 0.001
-	const size_t	NUM_CELLS_PER_AXIS = 10;
+	const double	BLOCK_SIZE = 0.003; // 0.01
+	const size_t	NUM_CELLS_PER_AXIS = 3; // 10
 	const bool		INDEPENDENT_BCM = true;
 	const bool		POINT_DUPLICATION = false;
 	OctreeGPMapType gpmap(BLOCK_SIZE, NUM_CELLS_PER_AXIS, INDEPENDENT_BCM, POINT_DUPLICATION);

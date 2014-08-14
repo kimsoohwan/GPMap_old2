@@ -1,21 +1,42 @@
 #ifndef _BAYESIAN_COMMITTEE_MACHINE_HPP_
 #define _BAYESIAN_COMMITTEE_MACHINE_HPP_
 
-#include "util/data_types.hpp"
+// STL
+#include <string>
+#include <fstream>
+
+// GPMap
+#include "util/data_types.hpp"	// MatrixPtr, VectorPtr
+#include "serialization/eigen_serialization.hpp"	// serialize, deserialize
 
 namespace GPMap {
 
-/* @brief Bayesian Committee Machine */
+/** @brief Bayesian Committee Machine */
 class BCM
 {
 public:
-	// BCM(VectorPtr &pSumOfWeightedMeans, MatrixPtr &pSumOfInvCovs)
+	BCM()
+		: m_fInitialized(false),
+		  m_fSerialized(false)
+	{}
+
+	BCM(VectorPtr &pSumOfWeightedMeans, MatrixPtr &pSumOfInvCovs)
+		: m_fInitialized(true),
+		  m_fSerialized(false),
+		  m_pSumOfWeightedMeans(pSumOfWeightedMeans),
+		  m_pSumOfInvCovs(pSumOfInvCovs)
+	{
+	}
+
 	// BCM& operator=(const BCM &rhs)
 
-	bool get(VectorPtr &pMean, MatrixPtr &pCov) const
+	bool get(VectorPtr &pMean, MatrixPtr &pCov)
 	{
+		// load if serialized
+		load();
+
 		// check 
-		if(!m_pSumOfInvCovs || !m_pSumOfWeightedMeans) return false;
+		if(!m_fInitialized || !m_pSumOfInvCovs || !m_pSumOfWeightedMeans) return false;
 
 		// constant 
 		const bool fVarianceVector(m_pSumOfInvCovs->cols() == 1);
@@ -90,8 +111,15 @@ public:
 		return true;
 	}
 
-	void update(const VectorPtr &pMean, const MatrixPtr &pCov)
+	bool update(const VectorPtr &pMean, const MatrixPtr &pCov)
 	{
+		// check
+		if(!pMean || pMean->size() <= 0 || 
+			!pCov  || pCov->rows() <= 0  || pCov->cols() <=0) return false;
+
+		// load if serialized
+		load();
+
 		// constant 
 		const bool fVarianceVector(pCov->cols() == 1);
 
@@ -158,25 +186,120 @@ public:
 #endif
 		}
 
-		// sum of inverted covariance matrices or variance vectors
-		if(m_pSumOfInvCovs) (*m_pSumOfInvCovs) += (*pInvCov);
-		else					   m_pSumOfInvCovs = pInvCov;
-		
-		// sum of weighted means
-		if(m_pSumOfWeightedMeans)	(*m_pSumOfWeightedMeans) += (*pWeightedMean);
-		else								m_pSumOfWeightedMeans = pWeightedMean;
+		// set
+		if(m_fInitialized)
+		{
+			// sum of inverted covariance matrices or variance vectors
+			(*m_pSumOfInvCovs) += (*pInvCov);
+
+			// sum of weighted means
+			(*m_pSumOfWeightedMeans) += (*pWeightedMean);
+		}
+		else
+		{
+				m_pSumOfInvCovs			= pInvCov;
+				m_pSumOfWeightedMeans	= pWeightedMean;
+				m_fInitialized				= true;
+		}
+
+		return true;
+	}
+
+	VectorConstPtr getSumOfWeightedMeans() const
+	{
+		return m_pSumOfWeightedMeans;
+	}
+
+	MatrixConstPtr getSumOfInvCovs() const
+	{
+		return m_pSumOfInvCovs;
 	}
 
 protected:
-	/* @brief	sum of weighted means with its inverse covariance matrix 
-	 * @detail	\f$\mathbf\mu_* = \mathbf\Sigma_*\left(\sum_{k=1}^K \mathbf\Sigma_k^{-1}\mathbf\mu_k\right)\f$
-	 */
+	/** @brief	Flag for initialization */
+	bool				m_fInitialized;
+
+	/** @brief	Flag for serialization */
+	bool				m_fSerialized;
+
+	/** @brief	Serialization file name */
+	std::string		m_strFileName;
+
+	/** @brief	sum of weighted means with its inverse covariance matrix 
+	  * @detail	\f$\mathbf\mu_* = \mathbf\Sigma_*\left(\sum_{k=1}^K \mathbf\Sigma_k^{-1}\mathbf\mu_k\right)\f$
+	  */
 	VectorPtr m_pSumOfWeightedMeans;
 
-	/* @brief sum of inverse covariance matrices
-	 * @detail	\f$\mathbf\Sigma_* = \left(\sum_{k=1}^K \mathbf\Sigma_k^{-1} - (K-1)\mathbf\Simga_0^{-1}\right)^{-1}\f$
-	 */
+	/** @brief sum of inverse covariance matrices
+	  * @detail	\f$\mathbf\Sigma_* = \left(\sum_{k=1}^K \mathbf\Sigma_k^{-1} - (K-1)\mathbf\Simga_0^{-1}\right)^{-1}\f$
+	  */
 	MatrixPtr m_pSumOfInvCovs;
+
+	/** @brief	Serialization */
+	friend class boost::serialization::access;
+	template<class Archive>
+	void serialize(Archive & ar, const unsigned int version)
+	{
+		ar & m_fInitialized;
+		if(m_fInitialized)
+		{
+			ar & (*m_pSumOfWeightedMeans);
+			ar & (*m_pSumOfInvCovs);
+		}
+	}
+
+
+public:
+	inline bool isSerialized() const
+	{
+		return m_fSerialized;
+	}
+
+	bool save(const std::string &filename)
+	{
+		// check initialized
+		if(!m_fInitialized) return false;
+
+		// save
+		if(!GPMap::serialize(*this, filename)) return false;
+
+		// deallocate memories
+		m_pSumOfWeightedMeans.reset();
+		m_pSumOfInvCovs.reset();
+
+		// filename and flag
+		m_strFileName = filename;
+		m_fSerialized = true;
+
+		return true;
+	}
+
+	bool load()
+	{
+		// flag check
+		if(!m_fSerialized) return false;
+
+		// allocate memories
+		m_pSumOfWeightedMeans.reset(new Vector());
+		m_pSumOfInvCovs.reset(new Matrix());
+
+		// load
+		if(!GPMap::deserialize(*this, m_strFileName)) return false;
+
+		// filename and flag
+		m_strFileName.clear();
+		m_fSerialized = false;
+
+		return true;
+	}
+
+	bool save2pcd(const std::string &filename)
+	{
+		// load if necessary
+		load();
+
+		// 
+	}
 };
 
 }

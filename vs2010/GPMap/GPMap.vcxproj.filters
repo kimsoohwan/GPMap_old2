@@ -37,6 +37,18 @@
     <Filter Include="test">
       <UniqueIdentifier>{3e3d79f5-b48d-4772-aa48-93ac3bbafeee}</UniqueIdentifier>
     </Filter>
+    <Filter Include="src\serialization">
+      <UniqueIdentifier>{94cb2317-0d7a-44dd-88a0-e261f97febb0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\octomap">
+      <UniqueIdentifier>{733de4aa-d01f-4239-bd2c-6b638088fa5d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="main">
+      <UniqueIdentifier>{64f91cc7-93d9-4b13-ae4c-7e14875ea744}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="main\bunny">
+      <UniqueIdentifier>{1d2aaa08-20c7-46b6-8503-29e88d9b729a}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\include\io\io.hpp">
@@ -84,11 +96,31 @@
     <ClInclude Include="..\..\include\visualization\cloud_viewer.hpp">
       <Filter>src\visualization</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\include\octomap\octomap.hpp">
+      <Filter>src\octomap</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\serialization\eigen_dense_base_addons.hpp">
+      <Filter>src\serialization</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\serialization\eigen_serialization.hpp">
+      <Filter>src\serialization</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\util\filesystem.hpp">
+      <Filter>src\util</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\util\timer.hpp">
+      <Filter>src\util</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="main.cpp" />
     <ClCompile Include="..\..\test\octree\test_octree_gpmap.cpp">
       <Filter>test</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\main\bunny\main_bunny_octomap.cpp">
+      <Filter>main\bunny</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\main\bunny\main_bunny_gpmap.cpp">
+      <Filter>main\bunny</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

@@ -10,8 +10,8 @@
     <Filter Include="test\data">
       <UniqueIdentifier>{cfefd5e3-7bcc-4f5b-b5f7-7fdb99af3195}</UniqueIdentifier>
     </Filter>
-    <Filter Include="test\octree">
-      <UniqueIdentifier>{364554f2-3efc-4a7c-90dd-de3f6c0d3736}</UniqueIdentifier>
+    <Filter Include="test\serialization">
+      <UniqueIdentifier>{181ed445-03d2-4e9d-a1f1-dfb37d803b55}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -21,8 +21,11 @@
     <ClInclude Include="..\..\test\bcm\test_bcm.hpp">
       <Filter>test\bcm</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\test\octree\test_octree_gpmap.hpp">
-      <Filter>test\octree</Filter>
+    <ClInclude Include="..\..\test\bcm\test_bcm_serialization.hpp">
+      <Filter>test\bcm</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\test\serialization\test_eigen_serialization.hpp">
+      <Filter>test\serialization</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

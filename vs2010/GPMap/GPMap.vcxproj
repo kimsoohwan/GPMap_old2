@@ -107,6 +107,7 @@
     <ClInclude Include="..\..\include\serialization\eigen_serialization.hpp" />
     <ClInclude Include="..\..\include\util\data_types.hpp" />
     <ClInclude Include="..\..\include\util\filesystem.hpp" />
+    <ClInclude Include="..\..\include\util\log.hpp" />
     <ClInclude Include="..\..\include\util\timer.hpp" />
     <ClInclude Include="..\..\include\util\util.hpp" />
     <ClInclude Include="..\..\include\visualization\cloud_viewer.hpp" />

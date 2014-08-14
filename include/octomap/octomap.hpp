@@ -3,6 +3,7 @@
 
 // STL
 #include <string>
+#include <vector>
 
 // PCL
 #include <pcl/point_types.h>		// pcl::PointXYZ, pcl::Normal, pcl::PointNormal
@@ -38,23 +39,33 @@ public:
 	{
 	}
 
+	/** @brief Constructor */
+	Octomap(const double				resolution,
+			  const std::string		strFileName,
+			  const bool				FLAG_SIMPLE_UPDATE = false)
+		:	pOcTree(new octomap::OcTree(resolution)),
+			FLAG_SIMPLE_UPDATE_(FLAG_SIMPLE_UPDATE)
+	{
+		// load octomap
+		pOcTree->readBinary(strFileName);
+	}
+
 	/** @brief	Update the octomap 
 	  * @return	Elapsed time (user/system/wall cpu times)
 	  */
 	template <typename PointT1, typename PointT2>
 	boost::timer::cpu_times
-	update(const typename pcl::PointCloud<PointT1>	&cloud,
+	update(const typename pcl::PointCloud<PointT1>	&pointCloud,
 			 const PointT2										&sensorPosition,
-			 const double										maxrange = -1,
-			 const bool											fSimpleUpdate = false)
+			 const double										maxrange = -1)
 	{
 		// robot position
 		octomap::point3d robotPosition(sensorPosition.x, sensorPosition.y, sensorPosition.z);
 
 		// point cloud
 		octomap::Pointcloud pc;
-		for(size_t i = 0; i < cloud.size(); i++)
-			pc.push_back(cloud.points[i].x, cloud.points[i].y, cloud.points[i].z);
+		for(size_t i = 0; i < pointCloud.size(); i++)
+			pc.push_back(pointCloud.points[i].x, pointCloud.points[i].y, pointCloud.points[i].z);
 
 		// timer - start
 		boost::timer::cpu_timer timer;
@@ -100,6 +111,72 @@ public:
 		// save
 		pOcTree->writeBinary(strFileName);
 		std::cout << std::endl;
+
+		return true;
+	}
+
+	/** @brief	Evaluate the octomap */
+	template <typename PointT1, typename PointT2>
+	bool evaluate(const std::vector<typename pcl::PointCloud<PointT1>::Ptr>			&pPointCloudPtrList,
+					  const std::vector<PointT2, Eigen::aligned_allocator<PointT2> >	&sensorPositionList,
+					  unsigned int																&num_points,
+					  unsigned int																&num_voxels_correct,
+					  unsigned int																&num_voxels_wrong,
+					  unsigned int																&num_voxels_unknown,
+					  const double																maxrange = -1)
+	{
+		// check size
+		assert(pPointCloudPtrList.size() == sensorPositionList.size());
+
+		// check memory
+		if(!pOcTree) return false;
+
+		// initialization
+		num_points = 0;
+		num_voxels_correct = 0;
+		num_voxels_wrong = 0;
+		num_voxels_unknown = 0;
+
+		// for each observation
+		for(size_t i = 0; i < pPointCloudPtrList.size(); i++)
+		{
+			// robot position
+			octomap::point3d robotPosition(sensorPositionList[i].x, sensorPositionList[i].y, sensorPositionList[i].z);
+
+			// point cloud
+			num_points += pPointCloudPtrList[i]->size();
+			octomap::Pointcloud pc;
+			for(size_t j = 0; j < pPointCloudPtrList[i]->size(); j++)
+				pc.push_back(pPointCloudPtrList[i]->points[j].x, pPointCloudPtrList[i]->points[i].y, pPointCloudPtrList[i]->points[j].z);
+
+			// free/occupied cells
+			octomap::KeySet free_cells, occupied_cells;
+			pOcTree->computeUpdate(pc, robotPosition, free_cells, occupied_cells, maxrange);
+			
+			// count free cells
+			for(octomap::KeySet::iterator it = free_cells.begin(); it != free_cells.end(); ++it)
+			{
+				octomap::OcTreeNode* n = pOcTree->search(*it);
+				if(n)
+				{
+					if(pOcTree->isNodeOccupied(n))	num_voxels_wrong++;
+					else										num_voxels_correct++;
+				}
+				else											num_voxels_unknown++;
+			}
+			
+			// count occupied cells
+			for(octomap::KeySet::iterator it = occupied_cells.begin(); it != occupied_cells.end(); ++it)
+			{
+				octomap::OcTreeNode* n = pOcTree->search(*it);
+				if(n)
+				{
+					if(pOcTree->isNodeOccupied(n))	num_voxels_correct++;
+					else										num_voxels_wrong++;
+				}
+				else											num_voxels_unknown++;
+			}
+		}
 
 		return true;
 	}

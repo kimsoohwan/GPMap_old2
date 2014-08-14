@@ -111,6 +111,9 @@
     <ClInclude Include="..\..\include\util\timer.hpp">
       <Filter>src\util</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\include\util\log.hpp">
+      <Filter>src\util</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\test\octree\test_octree_gpmap.cpp">

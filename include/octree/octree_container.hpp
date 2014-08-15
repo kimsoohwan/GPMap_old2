@@ -13,14 +13,14 @@
 
 // GPMap
 #include "util/data_types.hpp"		// Matrix, MatrixPtr
-#include "bcm/bcm.hpp"					// BCM
 
 
 namespace GPMap {
 
 /** @brief Leaf node type */
-class LeafNode : public pcl::octree::OctreeContainerDataTVector<int>, 
-					  public BCM
+template <typename BCM_T>
+class OctreeContainerIntVectorBCM : public pcl::octree::OctreeContainerDataTVector<int>, 
+												public BCM_T
 {
 public:
 	/** \brief Pushes a DataT element to internal DataT vector.

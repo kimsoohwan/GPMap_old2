@@ -145,9 +145,20 @@ protected:
 			ar & fIndependent;
 
 			// memory allocation
-			m_pSumOfWeightedMeans.reset(new Vector(dim));
-			if(fIndependent)	m_pSumOfInvCovs.reset(new Matrix(dim, 1));
-			else					m_pSumOfInvCovs.reset(new Matrix(dim, dim));
+			if(!m_pSumOfWeightedMeans || m_pSumOfWeightedMeans->size() != dim)
+			{
+				m_pSumOfWeightedMeans.reset(new Vector(dim));
+			}
+			if(fIndependent)
+			{
+				if(!m_pSumOfInvCovs || m_pSumOfInvCovs->rows() != dim || m_pSumOfInvCovs->cols() != 1)
+					m_pSumOfInvCovs.reset(new Matrix(dim, 1));
+			}
+			else
+			{
+				if(!m_pSumOfInvCovs || m_pSumOfInvCovs->rows() != dim || m_pSumOfInvCovs->cols() != dim)
+					m_pSumOfInvCovs.reset(new Matrix(dim, dim));
+			}
 
 			// mean
 			ar & (*m_pSumOfWeightedMeans);

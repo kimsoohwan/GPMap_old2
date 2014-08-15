@@ -50,7 +50,21 @@ public:
 		pOcTree->readBinary(strFileName);
 	}
 
-	/** @brief	Update the octomap 
+	/** @brief	Update a node of the octomap
+	  * @return	Elapsed time (user/system/wall cpu times)
+	  */
+	void updateNode(const float x, const float y, const float z, const float log_odds_update)
+	{
+		pOcTree->updateNode(octomap::point3d(pointNormals->points[i].x, 
+											pointNormals->points[i].y,
+											pointNormals->points[i].z),
+											pointNormals->points[i].normal_z);
+
+		HERE!!!!
+
+	}
+
+	/** @brief	Update the octomap with a point cloud
 	  * @return	Elapsed time (user/system/wall cpu times)
 	  */
 	template <typename PointT1, typename PointT2>

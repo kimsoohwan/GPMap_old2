@@ -181,11 +181,11 @@ size_t numFiniteNormals(const pcl::PointCloud<PointT>		&pointCloud,
 /** @brief	Generate training data from a surface normal cloud and a sensor position
   * @Todo	Optimization or using getMatrixXfMap()
   */
-void generateTraingData(const PointNormalCloudConstPtr		&pPointNormalCloud,
-								const Indices								&indices,
-								const pcl::PointXYZ						&sensorPosition,
-								const float									gap,
-								MatrixPtr &pX, MatrixPtr &pXd, VectorPtr &pYYd)
+void generateTrainingData(const PointNormalCloudConstPtr		&pPointNormalCloud,
+								  const Indices							&indices,
+								  const pcl::PointXYZ					&sensorPosition,
+								  const float								gap,
+								  MatrixPtr &pX, MatrixPtr &pXd, VectorPtr &pYYd)
 {
 	// K: NN by NN, NN = N + Nd*D
 	// 
@@ -271,7 +271,7 @@ void generateTraingData(const PointNormalCloudConstPtr		&pPointNormalCloud,
 /** @brief	Generate training data from a surface normal cloud
   * @Todo	Optimization or using getMatrixXfMap()
   */
-void generateTraingData(const PointNormalCloudConstPtr		&pPointNormalCloud,
+void generateTrainingData(const PointNormalCloudConstPtr		&pPointNormalCloud,
 								const Indices								&indices,
 								const float									gap,
 								MatrixPtr &pX, MatrixPtr &pXd, VectorPtr &pYYd)

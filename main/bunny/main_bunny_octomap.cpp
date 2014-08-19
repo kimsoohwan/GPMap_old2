@@ -1,4 +1,4 @@
-#if 1
+#if 0
 
 // STL
 #include <sstream>
@@ -19,9 +19,9 @@ int main(int argc, char** argv)
 	const std::string strFilenames_[] = {"bun000", "bun090", "bun180", "bun270"};
 	StringList strFileNames(strFilenames_, strFilenames_ + NUM_DATA); 
 
-	// log
+	// log file
 	std::string strLogFileName = strOutputDataFolder + "octomap.log";
-	Log log(strLogFileName);
+	Log logFile(strLogFileName);
 
 	// [1] load/save hit points
 	PointXYZCloudPtrList hitPointCloudPtrList;
@@ -44,35 +44,35 @@ int main(int argc, char** argv)
 	octomap_total_elapsed.clear();
 	for(size_t i = 0; i < hitPointCloudPtrList.size(); i++)
 	{
-		log << "==== Updating the octomap with the point cloud #" << i << " ====" << std::endl;
+		logFile << "==== Updating the Octomap with the point cloud #" << i << " ====" << std::endl;
 
 		// update
 		octomap_elapsed = octomap.update<pcl::PointXYZ, pcl::PointXYZ>(*(hitPointCloudPtrList[i]), sensorPositionList[i]);
 
 		// save
 		std::stringstream ss;
-		ss << strOutputDataFolder << "bunny_upto_" << i;
+		ss << strOutputDataFolder << "octomap_bunny_upto_" << i;
 		octomap.save(ss.str());
 
 		// accumulate cpu times
 		octomap_total_elapsed += octomap_elapsed;
-		log << octomap_elapsed << std::endl << std::endl;
+		logFile << octomap_elapsed << std::endl << std::endl;
 	}
 
-	// save
-	log << "============= Total Time =============" << std::endl;
-	log << octomap_total_elapsed << std::endl << std::endl;
+	// total time
+	logFile << "============= Total Time =============" << std::endl;
+	logFile << octomap_total_elapsed << std::endl << std::endl;
 
 	// [4] evaluation
-	log << "============= Evaluation =============" << std::endl;
+	logFile << "============= Evaluation =============" << std::endl;
 	unsigned int num_points, num_voxels_correct, num_voxels_wrong, num_voxels_unknown;
 	octomap.evaluate<pcl::PointXYZ, pcl::PointXYZ>(hitPointCloudPtrList, sensorPositionList,
 																  num_points, num_voxels_correct, num_voxels_wrong, num_voxels_unknown);
-	log << "Number of hit points: " << num_points << std::endl;
-	log << "Number of correct voxels: " << num_voxels_correct << std::endl;
-	log << "Number of wrong voxels: " << num_voxels_wrong << std::endl;
-	log << "Number of unknown voxels: " << num_voxels_unknown << std::endl;
-	log << "Correct rate (correct/(correct+wrong)): " << static_cast<float>(num_voxels_correct)/static_cast<float>(num_voxels_correct+num_voxels_wrong) << std::endl;
+	logFile << "Number of hit points: " << num_points << std::endl;
+	logFile << "Number of correct voxels: " << num_voxels_correct << std::endl;
+	logFile << "Number of wrong voxels: " << num_voxels_wrong << std::endl;
+	logFile << "Number of unknown voxels: " << num_voxels_unknown << std::endl;
+	logFile << "Correct rate (correct/(correct+wrong)): " << static_cast<float>(num_voxels_correct)/static_cast<float>(num_voxels_correct+num_voxels_wrong) << std::endl;
 
 	system("pause");
 

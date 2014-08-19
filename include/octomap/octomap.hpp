@@ -34,7 +34,7 @@ public:
 	/** @brief Constructor */
 	Octomap(const double resolution,
 			  const bool	FLAG_SIMPLE_UPDATE = false)
-		:	pOcTree(new octomap::OcTree(resolution)),
+		:	m_pOctree(new octomap::OcTree(resolution)),
 			FLAG_SIMPLE_UPDATE_(FLAG_SIMPLE_UPDATE)
 	{
 	}
@@ -43,25 +43,27 @@ public:
 	Octomap(const double				resolution,
 			  const std::string		strFileName,
 			  const bool				FLAG_SIMPLE_UPDATE = false)
-		:	pOcTree(new octomap::OcTree(resolution)),
+		:	m_pOctree(new octomap::OcTree(resolution)),
 			FLAG_SIMPLE_UPDATE_(FLAG_SIMPLE_UPDATE)
 	{
 		// load octomap
-		pOcTree->readBinary(strFileName);
+		m_pOctree->readBinary(strFileName);
 	}
 
 	/** @brief	Update a node of the octomap
 	  * @return	Elapsed time (user/system/wall cpu times)
 	  */
-	void updateNode(const float x, const float y, const float z, const float log_odds_update)
+	inline void updateNode(const double x, const double y, const double z, const float log_odds_update, bool lazy_eval = false)
 	{
-		pOcTree->updateNode(octomap::point3d(pointNormals->points[i].x, 
-											pointNormals->points[i].y,
-											pointNormals->points[i].z),
-											pointNormals->points[i].normal_z);
+		m_pOctree->updateNode(x, y, z, log_odds_update, lazy_eval);
+	}
 
-		HERE!!!!
-
+	/** @brief	Update a node of the octomap
+	  * @return	Elapsed time (user/system/wall cpu times)
+	  */
+	inline void updateNode(const double x, const double y, const double z, bool occupied, bool lazy_eval = false)
+	{
+		m_pOctree->updateNode(x, y, z, occupied, lazy_eval);
 	}
 
 	/** @brief	Update the octomap with a point cloud
@@ -85,22 +87,22 @@ public:
 		boost::timer::cpu_timer timer;
 
 		// update
-		if (FLAG_SIMPLE_UPDATE_)	pOcTree->insertPointCloudRays(pc, robotPosition, maxrange);
-		else								pOcTree->insertPointCloud(pc, robotPosition, maxrange);
+		if (FLAG_SIMPLE_UPDATE_)	m_pOctree->insertPointCloudRays(pc, robotPosition, maxrange);
+		else								m_pOctree->insertPointCloud(pc, robotPosition, maxrange);
 
 		// timer - end
 		boost::timer::cpu_times elapsed = timer.elapsed();
 
 		// memory
-		std::cout << "memory usage: "		<< pOcTree->memoryUsage()		<< std::endl;
-		std::cout << "leaf node count: " << pOcTree->getNumLeafNodes() << std::endl;
+		std::cout << "memory usage: "		<< m_pOctree->memoryUsage()		<< std::endl;
+		std::cout << "leaf node count: " << m_pOctree->getNumLeafNodes() << std::endl;
 		//if(tree->memoryUsage() > 900000000)
-		if(pOcTree->memoryUsage() > 500000000)
+		if(m_pOctree->memoryUsage() > 500000000)
 		{
-			pOcTree->toMaxLikelihood();
-			pOcTree->prune();
-			std::cout << "after pruned - memory usage: "		<< pOcTree->memoryUsage()		<< std::endl;
-			std::cout << "after pruned - leaf node count: " << pOcTree->getNumLeafNodes() << std::endl;
+			m_pOctree->toMaxLikelihood();
+			m_pOctree->prune();
+			std::cout << "after pruned - memory usage: "		<< m_pOctree->memoryUsage()		<< std::endl;
+			std::cout << "after pruned - leaf node count: " << m_pOctree->getNumLeafNodes() << std::endl;
 		}
 
 		// return the elapsed time
@@ -111,21 +113,24 @@ public:
 	bool save(const std::string &strFileNameWithoutExtension)
 	{
 		// check
-		if(!pOcTree) return false;
+		if(!m_pOctree) return false;
 
 		// file name
 		std::string strFileName;
+
+		// *.ot
+		if(FLAG_SIMPLE_UPDATE_)		strFileName = strFileNameWithoutExtension + "_simple.ot";
+		else								strFileName = strFileNameWithoutExtension + ".ot";
+		m_pOctree->write(strFileName);
+
+		// *.bt
 		if(FLAG_SIMPLE_UPDATE_)		strFileName = strFileNameWithoutExtension + "_simple_ml.bt";
 		else								strFileName = strFileNameWithoutExtension + "_ml.bt";
+		m_pOctree->toMaxLikelihood();
+		m_pOctree->prune();
+		m_pOctree->writeBinary(strFileName);
 
-		// perform maximum likelihood and prune
-		pOcTree->toMaxLikelihood();
-		pOcTree->prune();
-
-		// save
-		pOcTree->writeBinary(strFileName);
 		std::cout << std::endl;
-
 		return true;
 	}
 
@@ -143,7 +148,7 @@ public:
 		assert(pPointCloudPtrList.size() == sensorPositionList.size());
 
 		// check memory
-		if(!pOcTree) return false;
+		if(!m_pOctree) return false;
 
 		// initialization
 		num_points = 0;
@@ -165,15 +170,15 @@ public:
 
 			// free/occupied cells
 			octomap::KeySet free_cells, occupied_cells;
-			pOcTree->computeUpdate(pc, robotPosition, free_cells, occupied_cells, maxrange);
+			m_pOctree->computeUpdate(pc, robotPosition, free_cells, occupied_cells, maxrange);
 			
 			// count free cells
 			for(octomap::KeySet::iterator it = free_cells.begin(); it != free_cells.end(); ++it)
 			{
-				octomap::OcTreeNode* n = pOcTree->search(*it);
+				octomap::OcTreeNode* n = m_pOctree->search(*it);
 				if(n)
 				{
-					if(pOcTree->isNodeOccupied(n))	num_voxels_wrong++;
+					if(m_pOctree->isNodeOccupied(n))	num_voxels_wrong++;
 					else										num_voxels_correct++;
 				}
 				else											num_voxels_unknown++;
@@ -182,10 +187,10 @@ public:
 			// count occupied cells
 			for(octomap::KeySet::iterator it = occupied_cells.begin(); it != occupied_cells.end(); ++it)
 			{
-				octomap::OcTreeNode* n = pOcTree->search(*it);
+				octomap::OcTreeNode* n = m_pOctree->search(*it);
 				if(n)
 				{
-					if(pOcTree->isNodeOccupied(n))	num_voxels_correct++;
+					if(m_pOctree->isNodeOccupied(n))	num_voxels_correct++;
 					else										num_voxels_wrong++;
 				}
 				else											num_voxels_unknown++;
@@ -197,7 +202,7 @@ public:
 
 protected:
 	/** @brief	Octomap */
-	boost::shared_ptr<octomap::OcTree> pOcTree;
+	boost::shared_ptr<octomap::OcTree> m_pOctree;
 
 	/** @brief	Flag for simple update */
 	const bool FLAG_SIMPLE_UPDATE_;

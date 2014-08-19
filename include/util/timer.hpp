@@ -9,6 +9,18 @@
 
 namespace GPMap {
 
+///** @class	Timer
+//  * @brief	Wrapper for Boost Timer
+//  */
+//class Timer : protected boost::timer::cpu_times
+//{
+//public:
+//	Timer()
+//	{
+//		clear();
+//	}
+//};
+
 inline boost::timer::cpu_times& operator+=(boost::timer::cpu_times &lhs, 
 														 const boost::timer::cpu_times &rhs)
 {
@@ -16,6 +28,15 @@ inline boost::timer::cpu_times& operator+=(boost::timer::cpu_times &lhs,
 	lhs.system	+= rhs.system;		// System CPU time	in nano seconds
 	lhs.wall		+= rhs.wall;		// Wall-clock time	in nano seconds
 	return lhs;
+}
+
+inline boost::timer::cpu_times operator+(const boost::timer::cpu_times &lhs, 
+													  const boost::timer::cpu_times &rhs)
+{
+	boost::timer::cpu_times ret;
+	ret = lhs;
+	ret += rhs;
+	return ret;
 }
 
 inline float ns2sec(const boost::timer::nanosecond_type ns)

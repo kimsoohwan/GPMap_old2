@@ -1,4 +1,4 @@
-#if 1
+#if 0
 
 // GPMap
 #include "serialization/eigen_serialization.hpp" // Eigen
@@ -9,7 +9,6 @@
 #include "common/common.hpp"					// getMinMaxPointXYZ
 #include "octree/octree_gpmap.hpp"			// OctreeGPMap
 #include "octree/octree_viewer.hpp"			// OctreeViewer
-#include "util/log.hpp"							// Log
 using namespace GPMap;
 
 typedef OctreeGPMap<pcl::PointNormal, GP::MeanZeroDerObs, GP::CovSEisoDerObs, GP::LikGaussDerObs, GP::InfExactDerObs> OctreeGPMapType;
@@ -22,10 +21,6 @@ int main(int argc, char** argv)
 	const std::string strOutputDataFolder("../../data/output/bunny/");
 	const std::string strFilenames_[] = {"bun000", "bun090", "bun180", "bun270"};
 	StringList strFileNames(strFilenames_, strFilenames_ + NUM_DATA); 
-
-	// log file
-	std::string strLogFileName = strOutputDataFolder + "gpmap.log";
-	Log logFile(strLogFileName);
 
 	// [1] load/save hit points
 	//PointXYZCloudPtrList hitPointCloudPtrList;
@@ -66,9 +61,15 @@ int main(int argc, char** argv)
 	const size_t	NUM_CELLS_PER_AXIS = 3; // 10
 	const bool		INDEPENDENT_BCM = true;
 	const bool		POINT_DUPLICATION = false;
-	const size_t	MIN_NUM_POINTS_TO_PREDICT = 10;
-	OctreeGPMapType gpmap(BLOCK_SIZE, NUM_CELLS_PER_AXIS, INDEPENDENT_BCM, POINT_DUPLICATION, MIN_NUM_POINTS_TO_PREDICT);
+	OctreeGPMapType gpmap(BLOCK_SIZE, NUM_CELLS_PER_AXIS, INDEPENDENT_BCM, POINT_DUPLICATION);
 	gpmap.defineBoundingBox(min_pt, max_pt);
+
+	// [7] observation 1
+	const float GAP = 0.001; // 0.0001
+	//gpmap.setInputCloud(pointNormalCloudList[0], GAP, sensorPositionList[0]);
+	gpmap.setInputCloud(pointNormalCloudList[0], GAP);
+	gpmap.addPointsFromInputCloud();
+	OctreeViewer<pcl::PointNormal, OctreeGPMapType> octree_viewer1(gpmap);
 
 	// hyperparameters
 	//const float ell(0.1f), sigma_f(1.f), sigma_n(0.01f), sigma_nd(0.1f);
@@ -82,80 +83,28 @@ int main(int argc, char** argv)
 	logHyp.lik(0) = log(sigma_n);
 	logHyp.lik(1) = log(sigma_nd);
 
-	// [7] update
-	const float GAP = 0.001; // 0.0001
-	//const float occupancyThreshold = 0.95;
-	//float GAP; std::cout << "GAP: "; std::cin >> GAP; std::cout << GAP << std::endl;
-	//float occupancyThreshold; std::cout << "Occupancy Threshold: "; std::cin >> occupancyThreshold; std::cout << occupancyThreshold << std::endl;
-	boost::timer::cpu_times gpmap_add_point_elapsed, gpmap_update_elapsed;
-	boost::timer::cpu_times gpmap_add_point_total_elapsed, gpmap_update_total_elapsed, gpmap_total_elapsed;
-	gpmap_add_point_total_elapsed.clear();
-	gpmap_update_total_elapsed.clear();
-	gpmap_total_elapsed.clear();
+	// train
+	//const int MAX_ITER = 100;
+	//const int NUM_RANDOM_BLOCKS = 100;
+	//int MAX_ITER;
+	//size_t NUM_RANDOM_BLOCKS;
+	//std::cout << "Train - Max Iterations: ";	std::cin >> MAX_ITER;
+	//std::cout << "Train - Num Random Blocks: ";	std::cin >> NUM_RANDOM_BLOCKS;
+	//gpmap.train(logHyp, MAX_ITER, NUM_RANDOM_BLOCKS);
+	gpmap.update(logHyp);
+	OctreeViewer<pcl::PointNormal, OctreeGPMapType> octree_viewer2(gpmap);
+
+	// [7] observations 
 	for(size_t i = 0; i < NUM_DATA; i++)
 	{
-		logFile << "==== Updating the GPMap with the point cloud #" << i << " ====" << std::endl;
-
-		// [1] Set input cloud
-		logFile << "[1] Set input cloud" << std::endl;
+		std::cout << "Dataset i = " << i << std::endl;
 		//gpmap.setInputCloud(pointNormalCloudList[i], GAP, sensorPositionList[i]);
 		gpmap.setInputCloud(pointNormalCloudList[i], GAP);
-
-		// [2] Add points from the input cloud
-		logFile << "[2] Add points from the input cloud" << std::endl;
-		gpmap_add_point_elapsed = gpmap.addPointsFromInputCloud();
-		logFile << gpmap_add_point_elapsed << std::endl << std::endl;
-
-		// [3] Update using GPR
-		logFile << "[3] Update using GPR" << std::endl;
-		gpmap_update_elapsed		= gpmap.update(logHyp);
-		logFile << gpmap_update_elapsed << std::endl << std::endl;
-
-		// [4] Save
-		//while(true)
-		//{
-			//float minMeanThreshold; std::cout << "Min Mean Threshold: "; std::cin >> minMeanThreshold; std::cout << minMeanThreshold << std::endl;
-			//float maxVarThreshold; std::cout << "Max Var Threshold: "; std::cin >> maxVarThreshold; std::cout << maxVarThreshold << std::endl;
-			float minMeanThreshold(0.f);
-			float maxVarThreshold(10.f);
-			if(minMeanThreshold < 0 && maxVarThreshold < 0) break;
-			std::stringstream ss;
-			ss << strOutputDataFolder << "gpmap_bunny_upto_" << i << "_min_mean_" << minMeanThreshold << "_max_var_" << maxVarThreshold;
-			gpmap.saveAsOctomap(ss.str(), minMeanThreshold, maxVarThreshold);
-		//}
-
-		// accumulate cpu times
-		gpmap_add_point_total_elapsed += gpmap_add_point_elapsed;
-		gpmap_update_total_elapsed		+= gpmap_update_elapsed;
-		gpmap_total_elapsed				+= gpmap_add_point_elapsed;
-		gpmap_total_elapsed				+= gpmap_update_elapsed;
+		gpmap.addPointsFromInputCloud();
+		gpmap.update(logHyp);
+		OctreeViewer<pcl::PointNormal, OctreeGPMapType> octree_viewer(gpmap);
 	}
 
-	// total time
-	logFile << "============= Total Time =============" << std::endl;
-	logFile << "- Total: add point"	<< std::endl << gpmap_add_point_total_elapsed	<< std::endl << std::endl;
-	logFile << "- Total: update"		<< std::endl << gpmap_update_total_elapsed		<< std::endl << std::endl;
-	logFile << "- Total"					<< std::endl << gpmap_total_elapsed					<< std::endl << std::endl;
-
-	// [8] evaluation
-	//logFile << "============= Evaluation =============" << std::endl;
-	//unsigned int num_points, num_voxels_correct, num_voxels_wrong, num_voxels_unknown;
-	//octomap.evaluate<pcl::PointXYZ, pcl::PointXYZ>(hitPointCloudPtrList, sensorPositionList,
-	//															  num_points, num_voxels_correct, num_voxels_wrong, num_voxels_unknown);
-	//logFile << "Number of hit points: " << num_points << std::endl;
-	//logFile << "Number of correct voxels: " << num_voxels_correct << std::endl;
-	//logFile << "Number of wrong voxels: " << num_voxels_wrong << std::endl;
-	//logFile << "Number of unknown voxels: " << num_voxels_unknown << std::endl;
-	//logFile << "Correct rate (correct/(correct+wrong)): " << static_cast<float>(num_voxels_correct)/static_cast<float>(num_voxels_correct+num_voxels_wrong) << std::endl;
-
-	//// save
-	//while(true)
-	//{
-	//	float occupancyThreshold; std::cout << "Occupancy Threshold: "; std::cin >> occupancyThreshold; std::cout << occupancyThreshold << std::endl;
-	//	std::stringstream ss;
-	//	ss << strOutputDataFolder << "gpmap_bunny_upto_" << i << "_" << occupancyThreshold;
-	//	gpmap.saveAsOctomap(ss.str(), occupancyThreshold, false);
-	//}
 	system("pause");
 }
 

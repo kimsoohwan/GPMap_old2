@@ -1,0 +1,31 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="..\..\test\test.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\..\test\bcm\test_bcm.hpp">
+      <Filter>bcm</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\test\bcm\test_bcm_serializable.hpp">
+      <Filter>bcm</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\test\data\test_test_data.hpp">
+      <Filter>data</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\test\serialization\test_eigen_serialization.hpp">
+      <Filter>serialization</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="bcm">
+      <UniqueIdentifier>{2b9148e7-8ad2-4fcc-99ea-31a3a162b817}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="data">
+      <UniqueIdentifier>{dffc3440-471d-4805-a520-04242ed6d280}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="serialization">
+      <UniqueIdentifier>{f0e5c29f-e0b6-4f8c-a8b5-c22e97fb64d6}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+</Project>

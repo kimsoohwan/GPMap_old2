@@ -88,7 +88,7 @@ TEST_F(TestTestData, IndexTest)
 	}
 }
 
-/** @brief Test for xyz2row and row2xyz */
+/** @brief Test for meshGrid */
 TEST_F(TestTestData, DataTest)
 {
 	// actual
@@ -99,4 +99,17 @@ TEST_F(TestTestData, DataTest)
 	EXPECT_TRUE(pXs1->isApprox(*pXs2));
 }
 
+/** @brief Test for meshGrid */
+TEST_F(TestTestData, ShiftTest)
+{
+	// actual
+	MatrixPtr pXs2;
+	meshGrid(Eigen::Vector3f(0.f, 0.f, 0.f), N, CELL_SIZE, pXs2);
+	Matrix minValue(1, 3); 
+	minValue << min_pt.x(), min_pt.y(), min_pt.z();
+	pXs2->noalias() = (*pXs2) + minValue.replicate(N*N*N, 1);
+
+	// comparison
+	EXPECT_TRUE(pXs1->isApprox(*pXs2));
+}
 #endif

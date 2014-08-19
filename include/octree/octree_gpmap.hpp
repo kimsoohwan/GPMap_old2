@@ -4,6 +4,7 @@
 // STL
 #include <cmath>			// floor, ceil
 #include <vector>
+#include <limits>			// std::numeric_limits<T>::min(), max()
 
 // PCL
 #include <pcl/point_types.h>
@@ -26,10 +27,12 @@
 #include "bcm/bcm_serializable.hpp"			// BCM_Serializable
 #include "data/test_data.hpp"					// meshGrid
 #include "plsc/plsc.hpp"						// PLSC
-
+#include "octomap/octomap.hpp"				// Octomap
+#include "util/timer.hpp"						// boost::timer
 namespace GPMap {
 
-typedef OctreeContainerIntVectorBCM								LeafT;
+typedef OctreeContainerIntVectorBCM<BCM>					LeafT;
+//typedef OctreeContainerIntVectorBCM<BCM_Serializable>	LeafT;
 typedef pcl::octree::OctreeContainerEmpty<int>				BranchT;
 typedef pcl::octree::OctreeBase<int, LeafT, BranchT>		OctreeT;
 
@@ -83,7 +86,8 @@ public:
 		  BLOCK_SIZE_						(resolution_),
 		  NUM_CELLS_PER_AXIS_			(max<size_t>(1, NUM_CELLS_PER_AXIS)),
 		  NUM_CELLS_PER_BLOCK_			(NUM_CELLS_PER_AXIS_*NUM_CELLS_PER_AXIS_*NUM_CELLS_PER_AXIS_),
-		  CELL_SIZE_						(BLOCK_SIZE_/static_cast<double>(NUM_CELLS_PER_AXIS_)),
+		  //CELL_SIZE_						(BLOCK_SIZE_/static_cast<double>(NUM_CELLS_PER_AXIS_)),
+		  CELL_SIZE_						(BLOCK_SIZE/static_cast<double>(NUM_CELLS_PER_AXIS)),
 		  FLAG_INDEPENDENT_BCM_			(FLAG_INDEPENDENT_BCM),
 		  FLAG_DUPLICATE_POINTS_		(FLAG_DUPLICATE_POINTS),
 		  MIN_NUM_POINTS_TO_PREDICT_	(max<size_t>(1, MIN_NUM_POINTS_TO_PREDICT)),
@@ -92,6 +96,14 @@ public:
 #ifdef _TEST_OCTREE_GPMAP
 		PCL_WARN("Testing octree-based GPMap\n");
 #endif
+
+		std::cout << "BLOCK_SIZE_: "						<< BLOCK_SIZE_ << std::endl;
+		std::cout << "CELL_SIZE_: "						<< CELL_SIZE_ << std::endl;
+		std::cout << "NUM_CELLS_PER_AXIS_: "			<< NUM_CELLS_PER_AXIS_ << std::endl;
+		std::cout << "NUM_CELLS_PER_BLOCK_: "			<< NUM_CELLS_PER_BLOCK_ << std::endl;
+		std::cout << "MIN_NUM_POINTS_TO_PREDICT_: "	<< MIN_NUM_POINTS_TO_PREDICT_ << std::endl;
+		std::cout << "FLAG_INDEPENDENT_BCM_: "			<< FLAG_INDEPENDENT_BCM_ << std::endl;
+		std::cout << "FLAG_DUPLICATE_POINTS_: "		<< FLAG_DUPLICATE_POINTS_ << std::endl;
 
 		// set the test positions at (0, 0, 0)
 		meshGrid(Eigen::Vector3f(0.f, 0.f, 0.f), NUM_CELLS_PER_AXIS_, CELL_SIZE_, m_pXs);
@@ -164,11 +176,12 @@ public:
 		//m_sensorPosition = sensorPosition;
 	}
 
-	/** @brief Add points from input point cloud to octree.
+	/** @brief		Add points from input point cloud to octree.
 	  * @details	Refer to pcl::octree::OctreePointCloud<PointT, LeafT, BranchT, OctreeT>::addPointsFromInputCloud()
 	  *				where assertion is activated when this->leafCount_!=0.
+	  * @return		Elapsed time (user/system/wall cpu times)
 	  */
-	void addPointsFromInputCloud()
+	boost::timer::cpu_times addPointsFromInputCloud()
 	{
 		// assert (this->leafCount_==0);
 
@@ -212,6 +225,9 @@ public:
 		// shifted point
 		float shiftedPointX, shiftedPointY, shiftedPointZ;
 #endif
+
+		// timer - start
+		boost::timer::cpu_timer timer;
 
 		// add the new point cloud
 		if(indices_)
@@ -289,6 +305,9 @@ public:
 		m_nonEmptyBlockCenterPointXYZList.clear();
 		getOccupiedBlockCenters(m_nonEmptyBlockCenterPointXYZList, true);
 #endif
+
+		// timer - end
+		return timer.elapsed();
 	}
 
 	/** @brief		Train hyperparameters 
@@ -344,7 +363,7 @@ public:
 		std::cout << "hyp.lik = "  << std::endl << logHyp.lik.array().exp().matrix()  << std::endl << std::endl;
 
 		// for each leaf node
-		LeafT* pLeafNode;
+		LeafNode* pLeafNode;
 		Indices indexList;
 		Scalar nlZ;
 		size_t blockCount(0);
@@ -361,7 +380,7 @@ public:
 		{
 			// leaf node corresponding the octree key
 #ifdef CONST_LEAF_NODE_ITERATOR_
-			pLeafNode = static_cast<LeafT*>(iter.getCurrentOctreeNode())->getDataTVector();
+			pLeafNode = static_cast<LeafNode*>(iter.getCurrentOctreeNode())->getDataTVector();
 #else
 			// key
 			genOctreeKeyforPointXYZ(*iter, key);
@@ -377,8 +396,8 @@ public:
 			// training data
 			DerivativeTrainingData derivativeTrainingData;
 			MatrixPtr pX, pXd; VectorPtr pYYd;
-			//generateTraingData(input_, indexList, m_sensorPosition, m_gap, pX, pXd, pYYd);
-			generateTraingData(input_, indexList, m_gap, pX, pXd, pYYd);
+			//generateTrainingData(input_, indexList, m_sensorPosition, m_gap, pX, pXd, pYYd);
+			generateTrainingData(input_, indexList, m_gap, pX, pXd, pYYd);
 			derivativeTrainingData.set(pX, pXd, pYYd);
 
 			//InfType::negativeLogMarginalLikelihood(logHyp, 
@@ -396,16 +415,22 @@ public:
 		return sumNlZ;
 	}
 
-	/** @brief		Update the GPMap with new observations */
-	void update(const Hyp		&logHyp,
-					const int		maxIter = 0)
+	/** @brief		Update the GPMap with new observations
+	  * @return		Elapsed time (user/system/wall cpu times)
+	  */
+	boost::timer::cpu_times update(const Hyp		&logHyp,
+											 const bool		fConsiderNeighboringBlocks = true,
+											 const int		maxIter = 0)
 	{
 #ifdef _TEST_OCTREE_GPMAP
 		PCL_INFO("More than one points should be dangled in itself or neighbors.\n");
 #endif
-				
+
+		// timer - start
+		boost::timer::cpu_timer timer;
+
 		// if a point index is duplicated to 
-		if(FLAG_DUPLICATE_POINTS_)
+		if(FLAG_DUPLICATE_POINTS_ || !fConsiderNeighboringBlocks)
 		{
 			// leaf node iterator
 			LeafNodeIterator iter(*this);
@@ -424,7 +449,7 @@ public:
 				// collect indices
 				//indexList.clear();
 				//getData(key, indexList);
-				const Indices &indexList  = static_cast<LeafT*>(iter.getCurrentOctreeNode())->getDataTVector();
+				const Indices &indexList  = static_cast<LeafNode*>(iter.getCurrentOctreeNode())->getDataTVector();
 
 #ifdef _TEST_OCTREE_GPMAP
 				// more than one points should be dangled in itself or neighbors
@@ -434,7 +459,7 @@ public:
 				if(indexList.size() < MIN_NUM_POINTS_TO_PREDICT_) continue;
 
 				// leaf node
-				LeafT *pLeafNode = static_cast<LeafT *>(iter.getCurrentOctreeNode());
+				LeafNode *pLeafNode = static_cast<LeafNode *>(iter.getCurrentOctreeNode());
 
 				// predict
 				predict(logHyp, indexList, min_pt, pLeafNode, maxIter);
@@ -504,7 +529,7 @@ public:
 				std::cout << blockCount << "(" << indexList.size() << "), ";
 
 				// leaf node
-				LeafT *pLeafNode = static_cast<LeafT *>(iter.getCurrentOctreeNode());
+				LeafNode *pLeafNode = static_cast<LeafNode *>(iter.getCurrentOctreeNode());
 
 				// predict
 				predict(logHyp, indexList, min_pt, pLeafNode, maxIter);
@@ -514,6 +539,9 @@ public:
 			}
 			std::cout << std::endl;
 		}
+
+		// timer - end
+		return timer.elapsed();
 	}
 
 	/** @brief		Get occupied voxel center points
@@ -558,7 +586,7 @@ public:
 			while(*++iter)
 			{
 				// if the leaf node has no points, ignore it.
-				if(static_cast<LeafT*>(iter.getCurrentOctreeNode())->getSize() == 0) continue;
+				if(static_cast<LeafNode*>(iter.getCurrentOctreeNode())->getSize() == 0) continue;
 
 				// key
 				const pcl::octree::OctreeKey &key = iter.getCurrentOctreeKey();
@@ -591,7 +619,7 @@ public:
 
 	/** @brief Get occupied cell centers */
 	size_t getOccupiedCellCenters(PointXYZVList		&cellCenterPointXYZVector,
-											const float			threshold,
+											const float			occupancyThreshold,
 											const bool			fRemoveIsolatedCells)
 	{
 		// clear the vector
@@ -604,6 +632,7 @@ public:
 		Eigen::Vector3f min_pt;
 		VectorPtr pMean;
 		MatrixPtr pVariance;
+		const float HALF_CELL_SIZE = CELL_SIZE_ / 2.f;
 		while(*++iter)
 		{
 			// key
@@ -613,11 +642,10 @@ public:
 			genVoxelMinPoint(key, min_pt);
 
 			// leaf node
-			LeafT *pLeafNode = static_cast<LeafT *>(iter.getCurrentOctreeNode());
+			LeafNode *pLeafNode = static_cast<LeafNode *>(iter.getCurrentOctreeNode());
 
 			// mean, variance
-			pLeafNode->get(pMean, pVariance);
-			if(!pMean || !pVariance) continue;
+			if(!(pLeafNode->get(pMean, pVariance))) continue;
 			if(pVariance->cols() != 1)
 			{
 				MatrixPtr pTempVariance(new Matrix(pVariance->rows(), 1));
@@ -630,13 +658,140 @@ public:
 			for(size_t ix = 0; ix < NUM_CELLS_PER_AXIS_; ix++)
 				for(size_t iy = 0; iy < NUM_CELLS_PER_AXIS_; iy++)
 					for(size_t iz = 0; iz < NUM_CELLS_PER_AXIS_; iz++)
-						if(isNotIsolatedCell(pMean, pVariance, ix, iy, iz, threshold, fRemoveIsolatedCells, row))
-							cellCenterPointXYZVector.push_back(pcl::PointXYZ((*m_pXs)(row, 0) + min_pt.x(), 
-																							 (*m_pXs)(row, 1) + min_pt.y(),
-																							 (*m_pXs)(row, 2) + min_pt.z()));
+						if(isNotIsolatedCell(pMean, pVariance, ix, iy, iz, occupancyThreshold, fRemoveIsolatedCells, row))
+							cellCenterPointXYZVector.push_back(pcl::PointXYZ((*m_pXs)(row, 0) + min_pt.x() + HALF_CELL_SIZE, 
+																							 (*m_pXs)(row, 1) + min_pt.y() + HALF_CELL_SIZE,
+																							 (*m_pXs)(row, 2) + min_pt.z() + HALF_CELL_SIZE));
 		}
 
 		return cellCenterPointXYZVector.size();
+	}
+
+	/** @brief Save as an octomap */
+	bool saveAsOctomap(const std::string		&strFilenameWithoutExtension,
+							 const float				occupancyThreshold,
+							 const bool					fRemoveIsolatedCells)
+	{
+		// octomap
+		Octomap octomap(CELL_SIZE_);
+
+		// occupied cell centers
+		PointXYZVList cellCenterPointXYZVector;
+		if(getOccupiedCellCenters(cellCenterPointXYZVector, occupancyThreshold, fRemoveIsolatedCells) == 0) return false;
+
+		// update occupied nodes
+		for(size_t i = 0; i < cellCenterPointXYZVector.size(); i++)
+		{
+			const pcl::PointXYZ &point = cellCenterPointXYZVector[i];
+			octomap.updateNode(static_cast<double>(point.x), static_cast<double>(point.y), static_cast<double>(point.z), true);
+		}
+
+		// save
+		return octomap.save(strFilenameWithoutExtension);
+	}
+
+	/** @brief Save as an octomap */
+	bool saveAsOctomap(const std::string		&strFilenameWithoutExtension,
+							 const float				minMeanThreshold,
+							 const float				maxVarThreshold)
+	{
+		// octomap
+		Octomap octomap(CELL_SIZE_);
+
+		// leaf node iterator
+		LeafNodeIterator iter(*this);
+
+		// for each leaf node
+		Eigen::Vector3f min_pt;
+		VectorPtr pMean;
+		MatrixPtr pVariance;
+		const float HALF_CELL_SIZE = CELL_SIZE_ / 2.f;
+		float minMean	= std::numeric_limits<float>::max();
+		float maxMean	= std::numeric_limits<float>::min();
+		float minVar	= std::numeric_limits<float>::max();
+		float maxVar	= std::numeric_limits<float>::min();
+		size_t nOccupiedCells(0);
+		size_t nBlocks(0);
+		while(*++iter)
+		{
+			// key
+			const pcl::octree::OctreeKey &key = iter.getCurrentOctreeKey();
+
+			// min point
+			genVoxelMinPoint(key, min_pt);
+
+			// leaf node
+			LeafNode *pLeafNode = static_cast<LeafNode *>(iter.getCurrentOctreeNode());
+
+			// mean, variance
+			if(!(pLeafNode->get(pMean, pVariance))) continue;
+
+			// check occupancy
+			nBlocks++;
+			if(pVariance->cols() == 1)
+			{
+				// check if each cell is occupie
+				for(size_t ix = 0; ix < NUM_CELLS_PER_AXIS_; ix++)
+					for(size_t iy = 0; iy < NUM_CELLS_PER_AXIS_; iy++)
+						for(size_t iz = 0; iz < NUM_CELLS_PER_AXIS_; iz++)
+						{
+							// current index
+							const size_t row = xyz2row(NUM_CELLS_PER_AXIS_, ix, iy, iz);
+
+							// if the condition is satisfied
+							if((*pMean)(row) >= minMeanThreshold && (*pVariance)(row, 0) <= maxVarThreshold)
+							{
+								octomap.updateNode(static_cast<double>((*m_pXs)(row, 0) + min_pt.x() + HALF_CELL_SIZE), 
+														 static_cast<double>((*m_pXs)(row, 1) + min_pt.y() + HALF_CELL_SIZE),
+														 static_cast<double>((*m_pXs)(row, 2) + min_pt.z() + HALF_CELL_SIZE),
+														 true);
+
+								// min, max
+								minMean	= min<float>(minMean,	(*pMean)(row));
+								maxMean	= max<float>(maxMean,	(*pMean)(row));
+								minVar	= min<float>(minVar,		(*pVariance)(row, 0));
+								maxVar	= max<float>(maxVar,		(*pVariance)(row, 0));
+								nOccupiedCells++;
+							}
+						}
+			}
+			else
+			{
+				// check if each cell is occupie
+				for(size_t ix = 0; ix < NUM_CELLS_PER_AXIS_; ix++)
+					for(size_t iy = 0; iy < NUM_CELLS_PER_AXIS_; iy++)
+						for(size_t iz = 0; iz < NUM_CELLS_PER_AXIS_; iz++)
+						{
+							// current index
+							const size_t row = xyz2row(NUM_CELLS_PER_AXIS_, ix, iy, iz);
+
+							// if the condition is satisfied
+							if((*pMean)(row) >= minMeanThreshold && (*pVariance)(row, row) <= maxVarThreshold)
+							{
+								octomap.updateNode(static_cast<double>((*m_pXs)(row, 0) + min_pt.x() + HALF_CELL_SIZE), 
+														 static_cast<double>((*m_pXs)(row, 1) + min_pt.y() + HALF_CELL_SIZE),
+														 static_cast<double>((*m_pXs)(row, 2) + min_pt.z() + HALF_CELL_SIZE), true);
+
+								// min, max
+								minMean	= min<float>(minMean,	(*pMean)(row));
+								maxMean	= max<float>(maxMean,	(*pMean)(row));
+								minVar	= min<float>(minVar,		(*pVariance)(row, row));
+								maxVar	= max<float>(maxVar,		(*pVariance)(row, row));
+								nOccupiedCells++;
+							}
+						}
+			}
+		}
+
+		std::cout << "Min Mean: " << minMean << std::endl;
+		std::cout << "Max Mean: " << maxMean << std::endl;
+		std::cout << "Min Var: "  << minVar  << std::endl;
+		std::cout << "Max Var: "  << maxVar  << std::endl;
+		std::cout << "Num Blocks: "  << nBlocks  << std::endl;
+		std::cout << "Num Occupied Cells: "  << nOccupiedCells  << std::endl;
+
+		// save
+		return octomap.save(strFilenameWithoutExtension);
 	}
 
 	/** @brief Get the total number of point indices stored in each voxel */
@@ -649,11 +804,11 @@ public:
 		LeafNodeIterator iter(*this);
 
 		// for each leaf node
-		LeafT *pLeafNode;
+		LeafNode *pLeafNode;
 		while(*++iter)
 		{
 			// get size
-			pLeafNode = static_cast<LeafT*>(iter.getCurrentOctreeNode());
+			pLeafNode = static_cast<LeafNode*>(iter.getCurrentOctreeNode());
 			n += pLeafNode->getSize();
 		}
 
@@ -669,7 +824,7 @@ public:
 		while(*++iter)
 		{
 			// get size
-			if(static_cast<LeafT*>(iter.getCurrentOctreeNode())->getSize() <= 0) return false;
+			if(static_cast<LeafNode*>(iter.getCurrentOctreeNode())->getSize() <= 0) return false;
 		}
 
 		return true;
@@ -713,7 +868,7 @@ protected:
 		while(*++iter)
 		{
 			// reset
-			LeafT *pLeafNode = static_cast<LeafT*>(iter.getCurrentOctreeNode());
+			LeafNode *pLeafNode = static_cast<LeafNode*>(iter.getCurrentOctreeNode());
 			pLeafNode->reset();
 		}
 	}
@@ -870,7 +1025,7 @@ protected:
 	bool getData(const pcl::octree::OctreeKey &key, std::vector<int> &indexList) const
 	{
 		// leaf node corresponding the octree key
-		LeafT* pLeafNode = findLeaf(key);
+		LeafNode* pLeafNode = findLeaf(key);
 
 		// if the leaf node exists, add point indices to the vector
 		if(pLeafNode)
@@ -1011,13 +1166,18 @@ protected:
 		return false;
 	}
 
-	inline bool isCellNotOccupied(const VectorPtr &pMean, const MatrixPtr &pVariance, const size_t ix, const size_t iy, const size_t iz, const float threshold) const
+	inline bool isCellNotOccupied(const VectorPtr &pMean, const MatrixPtr &pVariance, 
+											const size_t ix, const size_t iy, const size_t iz, 
+											const float occupancyThreshold) const
 	{
 		const size_t row(xyz2row(NUM_CELLS_PER_AXIS_, ix, iy, iz));
-		return PLSC((*pMean)(row), (*pVariance)(row, 0)) < threshold;
+		return PLSC((*pMean)(row), (*pVariance)(row, 0)) < occupancyThreshold;
 	}
 
-	inline bool isNotIsolatedCell(const VectorPtr &pMean, const MatrixPtr &pVariance, const size_t ix, const size_t iy, const size_t iz, const float threshold, const bool fRemoveIsolatedCells, size_t &row) const
+	inline bool isNotIsolatedCell(const VectorPtr &pMean, const MatrixPtr &pVariance, 
+											const size_t ix, const size_t iy, const size_t iz, 
+											const float occupancyThreshold, const bool fRemoveIsolatedCells, 
+											size_t &row) const
 	{
 		// current index
 		row = xyz2row(NUM_CELLS_PER_AXIS_, ix, iy, iz);
@@ -1032,15 +1192,15 @@ protected:
 				ix >= lastIdx || iy >= lastIdx || iz >= lastIdx) return true;
 
 			// check if the node is surrounded with occupied nodes
-			if(isCellNotOccupied(pMean, pVariance, ix+1, iy,   iz  , threshold))		return true;
-			if(isCellNotOccupied(pMean, pVariance, ix-1, iy,   iz  , threshold))		return true;
-			if(isCellNotOccupied(pMean, pVariance, ix,   iy+1, iz  , threshold))		return true;
-			if(isCellNotOccupied(pMean, pVariance, ix,   iy-1, iz  , threshold))		return true;
-			if(isCellNotOccupied(pMean, pVariance, ix,   iy,   iz+1, threshold))		return true;
-			if(isCellNotOccupied(pMean, pVariance, ix,   iy,   iz-1, threshold))		return true;
+			if(isCellNotOccupied(pMean, pVariance, ix+1, iy,   iz  , occupancyThreshold))		return true;
+			if(isCellNotOccupied(pMean, pVariance, ix-1, iy,   iz  , occupancyThreshold))		return true;
+			if(isCellNotOccupied(pMean, pVariance, ix,   iy+1, iz  , occupancyThreshold))		return true;
+			if(isCellNotOccupied(pMean, pVariance, ix,   iy-1, iz  , occupancyThreshold))		return true;
+			if(isCellNotOccupied(pMean, pVariance, ix,   iy,   iz+1, occupancyThreshold))		return true;
+			if(isCellNotOccupied(pMean, pVariance, ix,   iy,   iz-1, occupancyThreshold))		return true;
 		}
 
-		return isCellNotOccupied(pMean, pVariance, ix, iy, iz, threshold);
+		return isCellNotOccupied(pMean, pVariance, ix, iy, iz, occupancyThreshold);
 	}
 
 	/** @details	The leaf node has only index vector, 
@@ -1051,14 +1211,14 @@ protected:
 	void predict(const Hyp					&logHyp,
 					 const Indices				&indexList, 
 					 Eigen::Vector3f			&min_pt,
-					 LeafT					*pLeafNode,
+					 LeafNode					*pLeafNode,
 					 const int					maxIter)
 	{
 		// training data
 		DerivativeTrainingData derivativeTrainingData;
 		MatrixPtr pX, pXd; VectorPtr pYYd;
-		//generateTraingData(input_, indexList, m_sensorPosition, m_gap, pX, pXd, pYYd);
-		generateTraingData(input_, indexList, m_gap, pX, pXd, pYYd);
+		//generateTrainingData(input_, indexList, m_sensorPosition, m_gap, pX, pXd, pYYd);
+		generateTrainingData(input_, indexList, m_gap, pX, pXd, pYYd);
 		derivativeTrainingData.set(pX, pXd, pYYd);
 
 		// test data

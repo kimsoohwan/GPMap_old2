@@ -64,10 +64,11 @@ public:
 	}
 
 	/** @brief Get mean and [co]variance */
-	void get(VectorPtr &pMean, MatrixPtr &pCov) const
+	bool get(VectorPtr &pMean, MatrixPtr &pCov) const
 	{
 		// memory check 
-		assert(isInitialized());
+		//assert(isInitialized());
+		if(!isInitialized()) return false;
 
 		// memory allocation
 		if(!pMean || pMean->size() != m_pSumOfWeightedMeans->size())	
@@ -132,6 +133,8 @@ public:
 			(*pMean)				= L.solve(*m_pSumOfWeightedMeans);	// (LL')*x = mean
 #endif
 		}
+
+		return true;
 	}
 
 	/** @brief Update the mean and [co]variance */

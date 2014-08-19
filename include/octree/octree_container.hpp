@@ -12,8 +12,7 @@
 #include <Eigen/Dense>
 
 // GPMap
-#include "util/data_types.hpp"		// Matrix, MatrixPtr
-
+#include "util/data_types.hpp"			// Matrix, MatrixPtr
 
 namespace GPMap {
 

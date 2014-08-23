@@ -10,7 +10,7 @@
 #include <fstream>
 
 // Boost - Filesystem
-#include <boost/filesystem.hpp>
+//#include <boost/filesystem.hpp>
 
 // Boost - Serialization
 #include <boost/archive/text_oarchive.hpp>
@@ -19,11 +19,15 @@
 #include <boost/archive/binary_iarchive.hpp>
 #include <boost/serialization/array.hpp>
 
-#define EIGEN_DENSEBASE_PLUGIN "eigen_dense_base_addons.hpp"
+// Eigne
 #define EIGEN_NO_DEBUG		// to speed up
-//#define EIGEN_USE_MKL_ALL	// to use Intel Math Kernel Library
+#define EIGEN_USE_MKL_ALL	// to use Intel Math Kernel Library
+#define EIGEN_DENSEBASE_PLUGIN "eigen_dense_base_addons.hpp"
 // TODO: [NumericalIssue] Check if Intel is correctly intalled and running.
 #include <Eigen/Core>
+
+// GPMap
+#include "util/filesystem.hpp"	// extractFileExtension
 
 namespace GPMap {
 
@@ -56,17 +60,18 @@ namespace GPMap {
 
 
 template <typename T>
-bool serialize(const T& data, const std::string& filename)
+bool serialize(const T& data, const std::string& strFilePath)
 {
 	// boost path for the file extension
-	boost::filesystem::path p(filename);
-	const std::string fileExtension(p.extension().string());
+	//boost::filesystem::path p(strFilePath);
+	//const std::string fileExtension(p.extension().string());
+	const std::string fileExtension(extractFileExtension(strFilePath));
 
 	// ascii
 	if(fileExtension.compare(".txt") == 0 || fileExtension.compare(".dat") == 0)
 	{
 		// open an output file
-		std::ofstream ofs(filename.c_str());
+		std::ofstream ofs(strFilePath.c_str());
 		if (!ofs.is_open()) return false;
 
 		// save
@@ -82,7 +87,7 @@ bool serialize(const T& data, const std::string& filename)
 	else
 	{
 		// open a binary output file
-		std::ofstream ofs(filename.c_str(), std::ofstream::binary);
+		std::ofstream ofs(strFilePath.c_str(), std::ofstream::binary);
 		if (!ofs.is_open()) return false;
 
 		// save
@@ -99,17 +104,18 @@ bool serialize(const T& data, const std::string& filename)
 }
 
 template <typename T>
-bool deserialize(T& data, const std::string& filename)
+bool deserialize(T& data, const std::string& strFilePath)
 {
 	// boost path for the file extension
-	boost::filesystem::path p(filename);
-	const std::string fileExtension(p.extension().string());
+	//boost::filesystem::path p(strFilePath);
+	//const std::string fileExtension(p.extension().string());
+	const std::string fileExtension(extractFileExtension(strFilePath));
 
 	// ascii
 	if(fileExtension.compare(".txt") == 0 || fileExtension.compare(".dat") == 0)
 	{
 		// open an input file
-		std::ifstream ifs(filename.c_str());
+		std::ifstream ifs(strFilePath.c_str());
 		if(!ifs.is_open()) return false;
 
 		// load
@@ -125,7 +131,7 @@ bool deserialize(T& data, const std::string& filename)
 	else
 	{
 		// open an input file
-		std::ifstream ifs(filename.c_str(), std::ifstream::binary);
+		std::ifstream ifs(strFilePath.c_str(), std::ifstream::binary);
 		if(!ifs.is_open()) return false;
 
 		// load

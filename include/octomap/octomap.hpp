@@ -16,25 +16,29 @@
 
 // GPMap
 #include "util/data_types.hpp"	// PointXYZCloud
-#include "util/timer.hpp"			// boost::timer
-
+#include "util/timer.hpp"			// Times
+#include "util/color.hpp"			// Color
 namespace GPMap {
 
-//void LeafNode2PointNormal
-//
-//void GPMap2Octomap
-//{
-//		octomap::OcTree tree(mapResolution);
-//
-//}
+enum OctomapColor {
+	NO_COLOR = 0,
+	COLOR = 1
+};
 
+template <int COLOR_> struct OctomapType {};
+template <> struct OctomapType<NO_COLOR>	{ typedef octomap::OcTree			OctomapT; };
+template <> struct OctomapType<COLOR>		{ typedef octomap::ColorOcTree	OctomapT; };
+
+template <int COLOR_>
 class Octomap
 {
+protected:
+	typedef typename OctomapType<COLOR_>::OctomapT	MyOctomapT;
 public:
 	/** @brief Constructor */
 	Octomap(const double resolution,
 			  const bool	FLAG_SIMPLE_UPDATE = false)
-		:	m_pOctree(new octomap::OcTree(resolution)),
+		:	m_pOctree(new MyOctomapT(resolution)),
 			FLAG_SIMPLE_UPDATE_(FLAG_SIMPLE_UPDATE)
 	{
 	}
@@ -43,11 +47,122 @@ public:
 	Octomap(const double				resolution,
 			  const std::string		strFileName,
 			  const bool				FLAG_SIMPLE_UPDATE = false)
-		:	m_pOctree(new octomap::OcTree(resolution)),
+		:	m_pOctree(new MyOctomapT(resolution)),
 			FLAG_SIMPLE_UPDATE_(FLAG_SIMPLE_UPDATE)
 	{
 		// load octomap
 		m_pOctree->readBinary(strFileName);
+	}
+
+	/** @brief			Constructor 
+	  * @details		Load the octomap from a point cloud
+	  */
+	Octomap(const double										resolution,
+			  const pcl::PointCloud<pcl::PointXYZI>	&pointCloud,
+			  const float										minMeanThreshold,
+			  const float										maxVarThreshold,
+			  const bool										FLAG_SIMPLE_UPDATE = false)
+		:	m_pOctree(new MyOctomapT(resolution)),
+			FLAG_SIMPLE_UPDATE_(FLAG_SIMPLE_UPDATE)
+	{
+		// get min, max
+		float minMean, maxMean, minVar, maxVar;
+		getMinMaxMeanVarOfOccupiedCells(pointCloud, minMeanThreshold, maxVarThreshold, minMean, maxMean, minVar, maxVar);
+
+		// color
+		if(m_pOctree->getTreeType().compare("ColorOcTree"))
+		{
+			// color
+			Color color(minVar, maxVar);
+			unsigned char r, g, b;
+
+			// for each point
+			for(size_t i = 0; i < pointCloud.points.size(); i++)
+			{
+				const pcl::PointXYZI &point = pointCloud.points[i];
+				if(point.data_c[0] >= minMeanThreshold &&	// mean
+					point.data_c[1] <= maxVarThreshold)		// var
+				{
+					// set occupied
+					m_pOctree->updateNode(static_cast<double>(point.x), 
+												 static_cast<double>(point.y), 
+												 static_cast<double>(point.z),
+												 true);
+
+					// color based on the variance
+					color.rgb(point.data_c[1], r, g, b);
+
+					// set color
+					m_pOctree->setNodeColor(point.x, point.y, point.z, r, g, b);
+				}
+			}
+		}
+		// no color
+		else
+		{
+			// for each point
+			for(size_t i = 0; i < pointCloud.points.size(); i++)
+			{
+				const pcl::PointXYZI &point = pointCloud.points[i];
+				if(point.data_c[0] >= minMeanThreshold &&	// mean
+					point.data_c[1] <= maxVarThreshold)		// var
+				{
+					// set occupied
+					m_pOctree->updateNode(static_cast<double>(point.x), 
+												 static_cast<double>(point.y), 
+												 static_cast<double>(point.z),
+												 true);
+				}
+			}
+		}
+	}
+
+	/** @brief			Constructor 
+	  * @details		Load the octomap from a point cloud
+	  */
+	Octomap(const double										resolution,
+			  const pcl::PointCloud<pcl::PointXYZI>	&pointCloud,
+			  const float										minMeanThreshold,
+			  const float										maxVarThreshold,
+			  const bool										fColor,
+			  const float										maxVarRangeForColor,
+			  const bool										FLAG_SIMPLE_UPDATE = false)
+		:	m_pOctree(new MyOctomapT(resolution)),
+			FLAG_SIMPLE_UPDATE_(FLAG_SIMPLE_UPDATE)
+	{
+		// get min, max
+		float minMean, maxMean, minVar, maxVar;
+		getMinMaxMeanVarOfOccupiedCells(pointCloud, minMeanThreshold, maxVarThreshold, minMean, maxMean, minVar, maxVar);
+
+		// color
+		Color color(minVarRangeForColor, maxVarRangeForColor);
+		unsigned char r, g, b;
+
+		// for each point
+		for(size_t i = 0; i < pointCloud.points.size(); i++)
+		{
+			const pcl::PointXYZI &point = pointCloud.points[i];
+			if(point.data_c[0] >= minMeanThreshold &&	// mean
+				point.data_c[1] <= maxVarThreshold)		// var
+			{
+				// set occupied
+				m_pOctree->updateNode(static_cast<double>(point.x), 
+											 static_cast<double>(point.y), 
+											 static_cast<double>(point.z),
+											 true);
+
+				// color based on the variance
+				color.rgb(point.data_c[1], r, g, b);
+
+				// random colors
+				//r = rand() % 256;
+				//g = rand() % 256;
+				//b = rand() % 256;
+
+				// set color
+				m_pOctree->setNodeColor(point.x, point.y, point.z, r, g, b);
+			}
+		}
 	}
 
 	/** @brief	Update a node of the octomap
@@ -70,7 +185,7 @@ public:
 	  * @return	Elapsed time (user/system/wall cpu times)
 	  */
 	template <typename PointT1, typename PointT2>
-	boost::timer::cpu_times
+	CPU_Times
 	update(const typename pcl::PointCloud<PointT1>	&pointCloud,
 			 const PointT2										&sensorPosition,
 			 const double										maxrange = -1)
@@ -84,14 +199,14 @@ public:
 			pc.push_back(pointCloud.points[i].x, pointCloud.points[i].y, pointCloud.points[i].z);
 
 		// timer - start
-		boost::timer::cpu_timer timer;
+		CPU_Timer timer;
 
 		// update
 		if (FLAG_SIMPLE_UPDATE_)	m_pOctree->insertPointCloudRays(pc, robotPosition, maxrange);
 		else								m_pOctree->insertPointCloud(pc, robotPosition, maxrange);
 
 		// timer - end
-		boost::timer::cpu_times elapsed = timer.elapsed();
+		CPU_Times elapsed = timer.elapsed();
 
 		// memory
 		std::cout << "memory usage: "		<< m_pOctree->memoryUsage()		<< std::endl;
@@ -201,8 +316,44 @@ public:
 	}
 
 protected:
+	void getMinMaxMeanVarOfOccupiedCells(const pcl::PointCloud<pcl::PointXYZI>		&pointCloud,
+													 const float										minMeanThreshold,
+													 const float										maxVarThreshold,
+													 float &minMean,	float &maxMean,
+													 float &minVar,		float &maxVar) const
+	{
+		// min, max
+		minMean	= std::numeric_limits<float>::max();
+		maxMean	= std::numeric_limits<float>::min();
+		minVar	= std::numeric_limits<float>::max();
+		maxVar	= std::numeric_limits<float>::min();
+
+		// for each point
+		for(size_t i = 0; i < pointCloud.points.size(); i++)
+		{
+			const pcl::PointXYZI &point = pointCloud.points[i];
+			if(point.data_c[0] >= minMeanThreshold &&	// mean
+				point.data_c[1] <= maxVarThreshold)		// var
+			{
+				// min, max
+				minMean	= min<float>(minMean,	point.data_c[0]);
+				maxMean	= max<float>(maxMean,	point.data_c[0]);
+				minVar	= min<float>(minVar,		point.data_c[1]);
+				maxVar	= max<float>(maxVar,		point.data_c[1]);
+			}
+		}
+
+		// log
+		LogFile logFile;
+		logFile << "Min Mean: " << minMean << std::endl;
+		logFile << "Max Mean: " << maxMean << std::endl;
+		logFile << "Min Var: "  << minVar  << std::endl;
+		logFile << "Max Var: "  << maxVar  << std::endl;
+	}
+
+protected:
 	/** @brief	Octomap */
-	boost::shared_ptr<octomap::OcTree> m_pOctree;
+	boost::shared_ptr<MyOctomapT>			m_pOctree;
 
 	/** @brief	Flag for simple update */
 	const bool FLAG_SIMPLE_UPDATE_;

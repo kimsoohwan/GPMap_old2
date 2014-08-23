@@ -3,11 +3,14 @@
 // STL
 #include <sstream>
 
+// GP
+#include "gp.h"						// LogFile
+using GP::LogFile;
+
 // GPMap
 #include "serialization/eigen_serialization.hpp"	// Eigen
 #include "io/io.hpp"											// loadPointClouds, savePointClouds, loadSensorPositionList
 #include "octomap/octomap.hpp"							// Octomap
-#include "util/log.hpp"										// Log
 using namespace GPMap;
 
 int main(int argc, char** argv)
@@ -40,7 +43,7 @@ int main(int argc, char** argv)
 	Octomap octomap(OCTOMAP_RESOLUTION);
 
 	// update
-	boost::timer::cpu_times octomap_elapsed, octomap_total_elapsed;
+	CPU_Times octomap_elapsed, octomap_total_elapsed;
 	octomap_total_elapsed.clear();
 	for(size_t i = 0; i < hitPointCloudPtrList.size(); i++)
 	{

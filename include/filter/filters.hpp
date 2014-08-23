@@ -192,8 +192,8 @@ rangeRemoval(typename pcl::PointCloud<PointT>::ConstPtr cloud,
 
 template <typename PointT>
 typename pcl::PointCloud<PointT>::Ptr
-downSample(typename pcl::PointCloud<PointT>::ConstPtr cloud,
-			const float leafSize)
+downSample(const typename pcl::PointCloud<PointT>::ConstPtr		&cloud,
+			  const float														leafSize)
 {
 	// build the filter
 	pcl::VoxelGrid<PointT> vg;

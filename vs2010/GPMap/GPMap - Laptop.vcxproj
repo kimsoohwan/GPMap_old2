@@ -19,14 +19,14 @@
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
     <CharacterSet>MultiByte</CharacterSet>
-    <UseIntelMKL>No</UseIntelMKL>
+    <UseIntelMKL>Parallel</UseIntelMKL>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>MultiByte</CharacterSet>
-    <UseIntelMKL>No</UseIntelMKL>
+    <UseIntelMKL>Parallel</UseIntelMKL>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ImportGroup Label="ExtensionSettings">
@@ -42,19 +42,19 @@
     <ExecutablePath>C:\Program Files (x86)\PCL 1.6.0\bin;$(ExecutablePath)</ExecutablePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
-    <LibraryPath>C:\Program Files (x86)\PCL 1.6.0\3rdParty\Boost\lib;C:\Program Files (x86)\PCL 1.6.0\3rdParty\VTK\lib\vtk-5.8;C:\Program Files (x86)\PCL 1.6.0\lib;E:\Documents\octomap-1.6.1\octomap\lib\Debug;$(LibraryPath)</LibraryPath>
+    <LibraryPath>C:\Program Files (x86)\PCL 1.6.0\3rdParty\Boost\lib;C:\Program Files (x86)\PCL 1.6.0\3rdParty\VTK\lib\vtk-5.8;C:\Program Files (x86)\PCL 1.6.0\lib;E:/Documents/octomap-1.6.6/lib/$(Configuration);$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <ExecutablePath>C:\Program Files (x86)\PCL 1.6.0\bin;$(ExecutablePath)</ExecutablePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
-    <LibraryPath>C:\Program Files (x86)\PCL 1.6.0\3rdParty\Boost\lib;C:\Program Files (x86)\PCL 1.6.0\3rdParty\VTK\lib\vtk-5.8;C:\Program Files (x86)\PCL 1.6.0\lib;E:\Documents\octomap-1.6.1\octomap\lib\Release;$(LibraryPath)</LibraryPath>
+    <LibraryPath>C:\Program Files (x86)\PCL 1.6.0\3rdParty\Boost\lib;C:\Program Files (x86)\PCL 1.6.0\3rdParty\VTK\lib\vtk-5.8;C:\Program Files (x86)\PCL 1.6.0\lib;E:/Documents/octomap-1.6.6/lib/$(Configuration);$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
-      <AdditionalIncludeDirectories>C:\Program Files %28x86%29\PCL 1.6.0\include\pcl-1.6;C:\Program Files %28x86%29\PCL 1.6.0\3rdParty\Boost\include;E:\Documents\eigen-3.2.0;C:\Program Files %28x86%29\PCL 1.6.0\3rdParty\FLANN\include;C:\Program Files %28x86%29\PCL 1.6.0\3rdParty\Qhull\include;C:\Program Files %28x86%29\PCL 1.6.0\3rdParty\VTK\include\vtk-5.8;E:\Documents\dlib-18.3;E:\Documents\GitHub\OpenGP\include;E:\Documents\GitHub\GPMap\include;E:\Documents\octomap-1.6.1\octomap\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Program Files %28x86%29\PCL 1.6.0\include\pcl-1.6;C:\Program Files %28x86%29\PCL 1.6.0\3rdParty\Boost\include;E:\Documents\eigen-3.2.0;C:\Program Files %28x86%29\PCL 1.6.0\3rdParty\FLANN\include;C:\Program Files %28x86%29\PCL 1.6.0\3rdParty\Qhull\include;C:\Program Files %28x86%29\PCL 1.6.0\3rdParty\VTK\include\vtk-5.8;E:\Documents\dlib-18.3;E:\Documents\GitHub\OpenGP\include;E:\Documents\GitHub\GPMap\include;E:\Documents\octomap-1.6.6\octomap\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <OpenMPSupport>true</OpenMPSupport>
       <DebugInformationFormat>EditAndContinue</DebugInformationFormat>
     </ClCompile>
@@ -70,7 +70,7 @@
       <Optimization>MaxSpeed</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
-      <AdditionalIncludeDirectories>C:\Program Files %28x86%29\PCL 1.6.0\include\pcl-1.6;C:\Program Files %28x86%29\PCL 1.6.0\3rdParty\Boost\include;E:\Documents\eigen-3.2.0;C:\Program Files %28x86%29\PCL 1.6.0\3rdParty\FLANN\include;C:\Program Files %28x86%29\PCL 1.6.0\3rdParty\Qhull\include;C:\Program Files %28x86%29\PCL 1.6.0\3rdParty\VTK\include\vtk-5.8;E:\Documents\dlib-18.3;E:\Documents\GitHub\OpenGP\include;E:\Documents\GitHub\GPMap\include;E:\Documents\octomap-1.6.1\octomap\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Program Files %28x86%29\PCL 1.6.0\include\pcl-1.6;C:\Program Files %28x86%29\PCL 1.6.0\3rdParty\Boost\include;E:\Documents\eigen-3.2.0;C:\Program Files %28x86%29\PCL 1.6.0\3rdParty\FLANN\include;C:\Program Files %28x86%29\PCL 1.6.0\3rdParty\Qhull\include;C:\Program Files %28x86%29\PCL 1.6.0\3rdParty\VTK\include\vtk-5.8;E:\Documents\dlib-18.3;E:\Documents\GitHub\OpenGP\include;E:\Documents\GitHub\GPMap\include;E:\Documents\octomap-1.6.6\octomap\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <OpenMPSupport>true</OpenMPSupport>
       <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
@@ -107,12 +107,13 @@
     <ClInclude Include="..\..\include\plsc\plsc.hpp" />
     <ClInclude Include="..\..\include\serialization\eigen_dense_base_addons.hpp" />
     <ClInclude Include="..\..\include\serialization\eigen_serialization.hpp" />
+    <ClInclude Include="..\..\include\util\color.hpp" />
     <ClInclude Include="..\..\include\util\data_types.hpp" />
     <ClInclude Include="..\..\include\util\filesystem.hpp" />
-    <ClInclude Include="..\..\include\util\log.hpp" />
     <ClInclude Include="..\..\include\util\timer.hpp" />
     <ClInclude Include="..\..\include\util\util.hpp" />
     <ClInclude Include="..\..\include\visualization\cloud_viewer.hpp" />
+    <ClInclude Include="..\..\main\macro_gpmap.hpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

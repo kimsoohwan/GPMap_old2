@@ -69,9 +69,6 @@
     <ClInclude Include="..\..\include\util\filesystem.hpp">
       <Filter>src\util</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\include\util\log.hpp">
-      <Filter>src\util</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\include\util\timer.hpp">
       <Filter>src\util</Filter>
     </ClInclude>
@@ -80,6 +77,12 @@
     </ClInclude>
     <ClInclude Include="..\..\include\visualization\cloud_viewer.hpp">
       <Filter>src\visualization</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\main\macro_gpmap.hpp">
+      <Filter>main</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\util\color.hpp">
+      <Filter>src\util</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -130,6 +133,9 @@
     </Filter>
     <Filter Include="src\util">
       <UniqueIdentifier>{bd7c66a0-3e19-4cee-bef8-ce09a8d8bce0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\iso_surface">
+      <UniqueIdentifier>{4fab5750-3228-4fdc-a202-15f6620c9407}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
 </Project>

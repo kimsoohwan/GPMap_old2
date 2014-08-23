@@ -290,21 +290,22 @@ void generateTrainingData(const PointNormalCloudConstPtr		&pPointNormalCloud,
 	// some constants
 	const bool fCreateEmptyPoint(gap > 0.f);	// create empty points or not
 	const size_t D = 3;								// number of dimensions
-	const size_t N = numFiniteNormals(*pPointNormalCloud, indices);	// hit points, empty points
-	const size_t Nd = N;															// surface normals
+	const size_t N  = numFiniteNormals(*pPointNormalCloud, indices);	// hit points, empty points
+	const size_t Nd = fCreateEmptyPoint ? 0 : N;	// surface normals
 
 	// memory allocation
 	if(fCreateEmptyPoint)
 	{
 		pX.reset(new Matrix(2*N, 3));				// hit/empty points
-		pYYd.reset(new Vector(2*N + Nd*D));		// hit/empty points, surface normals
+		pXd.reset(new Matrix(Nd, 3));				// -
+		pYYd.reset(new Vector(2*N));				// hit/empty points
 	}
 	else
 	{
 		pX.reset(new Matrix(N, 3));				// hit points
+		pXd.reset(new Matrix(Nd, 3));				// surface normals
 		pYYd.reset(new Vector(N + Nd*D));		// hit points, surface normals
 	}
-	pXd.reset(new Matrix(N, 3));					// surface normals
 
 	// assignment
 	pcl::PointXYZ emptyPoint;
@@ -326,28 +327,21 @@ void generateTrainingData(const PointNormalCloudConstPtr		&pPointNormalCloud,
 		(*pX)(i, 2)		= pointNormal.z;
 		(*pYYd)(i)		= 0.f;
 
+		// empty point
 		if(fCreateEmptyPoint)
 		{
-			// empty point
 			genEmptyPoint(pointNormal, gap, emptyPoint);
 			(*pX)(N+i, 0)	= emptyPoint.x;
 			(*pX)(N+i, 1)	= emptyPoint.y;
 			(*pX)(N+i, 2)	= emptyPoint.z;
 			(*pYYd)(N+i)	= gap;
 		}
-
 		// surface normal
-		(*pXd)(i, 0)			= pointNormal.x;
-		(*pXd)(i, 1)			= pointNormal.y;
-		(*pXd)(i, 2)			= pointNormal.z;
-		if(fCreateEmptyPoint)
-		{
-			(*pYYd)(2*N+i)			= pointNormal.normal_x;
-			(*pYYd)(2*N+Nd+i)		= pointNormal.normal_y;
-			(*pYYd)(2*N+2*Nd+i)	= pointNormal.normal_z;
-		}
 		else
 		{
+			(*pXd)(i, 0)			= pointNormal.x;
+			(*pXd)(i, 1)			= pointNormal.y;
+			(*pXd)(i, 2)			= pointNormal.z;
 			(*pYYd)(N+i)			= pointNormal.normal_x;
 			(*pYYd)(N+Nd+i)		= pointNormal.normal_y;
 			(*pYYd)(N+2*Nd+i)		= pointNormal.normal_z;

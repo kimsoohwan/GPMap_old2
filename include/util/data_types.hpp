@@ -23,7 +23,7 @@ TYPE_DEFINE_MATRIX(float);
 TYPE_DEFINE_VECTOR(float);
 
 /** @brief Data type for CholeskyFactor, CholeskyFactorPtr, CholeskyFactorConstPtr */
-TYPE_DEFINE_CHOLESKYFACTOR(float)
+TYPE_DEFINE_CHOLESKYFACTOR()
 
 //PCL
 /** @brief Type for a vector of pcl::PointXYZ points */

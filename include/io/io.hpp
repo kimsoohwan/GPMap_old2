@@ -14,15 +14,19 @@
 #include <pcl/io/pcd_io.h>			// pcl::io::loadPCDFile, savePCDFile
 #include <pcl/io/ply_io.h>			// pcl::io::loadPLYFile, savePLYFile
 
+// GP
+#include "gp.h"						// LogFile
+using GP::LogFile;
+
 // GPMap
-#include "util/data_types.hpp"		// PointXYZVList
-#include "util/filesystem.hpp"		// fileExtension
+#include "util/data_types.hpp"	// PointXYZVList
+#include "util/filesystem.hpp"	// extractFileExtension
 
 namespace GPMap {
 
 template <typename PointT>
-int loadPointCloud(const std::string								&strFilePath, 
-						 typename pcl::PointCloud<PointT>::Ptr		&pCloud, 
+int loadPointCloud(typename pcl::PointCloud<PointT>::Ptr		&pPointCloud, 
+						 const std::string								&strFilePath, 
 						 const bool											fAccumulation = false)
 {
 	// point cloud
@@ -30,7 +34,7 @@ int loadPointCloud(const std::string								&strFilePath,
 
 	// load the file based on the file extension
 	int result = -2;
-	const std::string strFileExtension(fileExtension(strFilePath));
+	const std::string strFileExtension(extractFileExtension(strFilePath));
 	if(strFileExtension.compare(".pcd") == 0)		result = pcl::io::loadPCDFile<PointT>(strFilePath.c_str(), *pTempCloud);
 	if(strFileExtension.compare(".ply") == 0)		result = pcl::io::loadPLYFile<PointT>(strFilePath.c_str(), *pTempCloud);
 	
@@ -57,24 +61,24 @@ int loadPointCloud(const std::string								&strFilePath,
     pcl::removeNaNFromPointCloud(*pTempCloud, *pTempCloud, std::vector<int>());
 
 	// accumulate
-	if(fAccumulation)		*pCloud += *pTempCloud;
-	else						pCloud = pTempCloud;
+	if(fAccumulation)		*pPointCloud += *pTempCloud;
+	else						pPointCloud = pTempCloud;
 
-	return pCloud->size();
+	return pPointCloud->size();
 }
 
 template <typename PointT>
-void savePointCloud(const std::string												&strFilePath, 
-						  const typename pcl::PointCloud<PointT>::ConstPtr		&pCloud,
-						  const bool														fBinary = true)
+inline void loadPointCloud(typename pcl::PointCloud<PointT>::Ptr		&pPointCloud,
+									const std::string									&strFileName, 
+									const std::string									&strPrefix,
+									const std::string									&strSuffix)
 {
-	// point cloud
-	typename pcl::PointCloud<PointT>::Ptr pTempCloud(new pcl::PointCloud<PointT>());
+	// log file
+	LogFile logFile;
+	logFile << "Loading " << strFileName << " ... ";
 
-	// save the file based on the file extension
-	const std::string strFileExtension(fileExtension(strFilePath));
-	if(strFileExtension.compare(".pcd") == 0)		pcl::io::savePCDFile<PointT>(strFilePath.c_str(), *pCloud, fBinary);
-	if(strFileExtension.compare(".ply") == 0)		pcl::io::savePLYFile<PointT>(strFilePath.c_str(), *pCloud, fBinary);
+	// load
+	logFile << loadPointCloud<PointT>(pPointCloud, strPrefix + strFileName + strSuffix) << " points." << std::endl;
 }
 
 template <typename PointT>
@@ -88,11 +92,35 @@ void loadPointClouds(std::vector<typename pcl::PointCloud<PointT>::Ptr>		&pPoint
 
 	// load files
 	for(size_t i = 0; i < strFileNames.size(); i++)
-	{
-		// load a file
-		PCL_INFO("Loading %s ... ", strFileNames[i].c_str());
-		PCL_INFO("%d points.\n", loadPointCloud<PointT>(strPrefix + strFileNames[i] + strSuffix, pPointClouds[i]));
-	}
+		loadPointCloud<PointT>(pPointClouds[i], strFileNames[i], strPrefix, strSuffix);
+}
+
+template <typename PointT>
+inline void savePointCloud(const typename pcl::PointCloud<PointT>::ConstPtr	&pPointCloud,
+									const std::string												&strFilePath, 
+									const bool														fBinary = true)
+{
+	// save the file based on the file extension
+	const std::string strFileExtension(extractFileExtension(strFilePath));
+	if(strFileExtension.compare(".pcd") == 0)		pcl::io::savePCDFile<PointT>(strFilePath.c_str(), *pPointCloud, fBinary);
+	if(strFileExtension.compare(".ply") == 0)		pcl::io::savePLYFile<PointT>(strFilePath.c_str(), *pPointCloud, fBinary);
+}
+
+template <typename PointT>
+inline void savePointCloud(const typename pcl::PointCloud<PointT>::ConstPtr	&pPointCloud,
+									const std::string												&strFileName, 
+									const std::string												&strPrefix,
+									const std::string												&strSuffix,				 
+									const bool														fBinary = true)
+{
+	// log file
+	LogFile logFile;
+	logFile << "Saving " << strFileName << " ... ";
+
+	// save
+	savePointCloud<PointT>(pPointCloud, strPrefix + strFileName + strSuffix, fBinary);
+
+	logFile << " done." << std::endl;
 }
 
 template <typename PointT>
@@ -104,31 +132,34 @@ void savePointClouds(const std::vector<typename pcl::PointCloud<PointT>::Ptr>		&
 {
 	// save the files
 	for(size_t i = 0; i < strFileNames.size(); i++)
-	{
-		PCL_INFO("Saving %s ... ", strFileNames[i].c_str());
-		savePointCloud<PointT>(strPrefix + strFileNames[i] + strSuffix, pPointClouds[i], fBinary);
-		PCL_INFO("done.\n");
-	}
+		savePointCloud<PointT>(pPointClouds[i], strFileNames[i], strPrefix, strSuffix, fBinary);
 }
 
 
-void loadSensorPositionList(PointXYZVList		&sensorPositionList, 
+void loadSensorPositionList(PointXYZVList			&sensorPositionList, 
 									 const StringList		&strFileNames, 
 									 const std::string	&strPrefix = std::string(),
 									 const std::string	&strSuffix = std::string())
 {
+	// log file
+	LogFile logFile;
+
 	// resize
 	sensorPositionList.resize(strFileNames.size());
 
 	// for each file name
 	for(size_t i = 0; i < strFileNames.size(); i++)
 	{
+		logFile << "Loading " << strFileNames[i] << " ... ";
+
 		// file name
 		const std::string strFileName = strPrefix + strFileNames[i] + strSuffix;
 
 		// open
 		std::ifstream fin(strFileName);
 		fin >> sensorPositionList[i].x >> sensorPositionList[i].y >> sensorPositionList[i].z;
+		
+		logFile << " done." << std::endl;
 	}
 }
 

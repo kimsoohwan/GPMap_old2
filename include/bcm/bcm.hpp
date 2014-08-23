@@ -1,9 +1,15 @@
 #ifndef _BAYESIAN_COMMITTEE_MACHINE_HPP_
 #define _BAYESIAN_COMMITTEE_MACHINE_HPP_
 
+// STL
+#include <cmath>
+
+// GP
+#include "gp.h"						// LogFile
+using GP::LogFile;
+
 // GPMap
 #include "util/data_types.hpp"	// MatrixPtr, VectorPtr
-
 namespace GPMap {
 
 /** @brief Bayesian Committee Machine */
@@ -93,31 +99,45 @@ public:
 		{
 			// cholesky factor of the covariance matrix
 			CholeskyFactor L(*m_pSumOfInvCovs);
-			if(L.info() != Eigen::/*ComputationInfo::*/Success)
+
+			float num_iters = -1.f;
+			float factor;
+			while(L.info() != Eigen::/*ComputationInfo::*/Success)
 			{
-				GP::Exception e;
-				switch(L.info())
-				{
-					case Eigen::/*ComputationInfo::*/NumericalIssue :
-					{
-						e = "BCM::Get::NumericalIssue";
-						break;
-					}
-					case Eigen::/*ComputationInfo::*/NoConvergence :
-					{
-						e = "BCM::Get::NoConvergence";
-						break;
-					}
-#if EIGEN_VERSION_AT_LEAST(3,2,0)
-					case Eigen::/*ComputationInfo::*/InvalidInput :
-					{
-						e = "BCM::Get::InvalidInput";
-						break;
-					}
-#endif
-				}
-				throw e;
+				num_iters += 1.f;
+				factor = static_cast<float>(powf(10, num_iters)) * DIAGONAL_TERM_FOR_SINGULAR_MATRIX;
+				L.compute(*m_pSumOfInvCovs + factor * Matrix::Identity(m_pSumOfInvCovs->rows(), m_pSumOfInvCovs->cols()));
 			}
+			if(num_iters > 0)
+			{
+				LogFile logFile;
+				logFile << "BCM::Get::Iter: " << num_iters << "(" << factor << ")" << std::endl;
+			}
+//			if(L.info() != Eigen::/*ComputationInfo::*/Success)
+//			{
+//				GP::Exception e;
+//				switch(L.info())
+//				{
+//					case Eigen::/*ComputationInfo::*/NumericalIssue :
+//					{
+//						e = "BCM::Get::NumericalIssue";
+//						break;
+//					}
+//					case Eigen::/*ComputationInfo::*/NoConvergence :
+//					{
+//						e = "BCM::Get::NoConvergence";
+//						break;
+//					}
+//#if EIGEN_VERSION_AT_LEAST(3,2,0)
+//					case Eigen::/*ComputationInfo::*/InvalidInput :
+//					{
+//						e = "BCM::Get::InvalidInput";
+//						break;
+//					}
+//#endif
+//				}
+//				throw e;
+//			}
 
 			// Sigma
 #if EIGEN_VERSION_AT_LEAST(3,2,0)
@@ -178,31 +198,45 @@ public:
 		{
 			// cholesky factor of the covariance matrix
 			CholeskyFactor L(*pCov);
-			if(L.info() != Eigen::/*ComputationInfo::*/Success)
+
+			float num_iters = -1.f;
+			float factor;
+			while(L.info() != Eigen::/*ComputationInfo::*/Success)
 			{
-				GP::Exception e;
-				switch(L.info())
-				{
-					case Eigen::/*ComputationInfo::*/NumericalIssue :
-					{
-						e = "BCM::Update::NumericalIssue";
-						break;
-					}
-					case Eigen::/*ComputationInfo::*/NoConvergence :
-					{
-						e = "BCM::Update::NoConvergence";
-						break;
-					}
-#if EIGEN_VERSION_AT_LEAST(3,2,0)
-					case Eigen::/*ComputationInfo::*/InvalidInput :
-					{
-						e = "BCM::Update::InvalidInput";
-						break;
-					}
-#endif
-				}
-				throw e;
+				num_iters += 1.f;
+				factor = static_cast<float>(powf(10, num_iters)) * DIAGONAL_TERM_FOR_SINGULAR_MATRIX;
+				L.compute(*pCov + factor * Matrix::Identity(pCov->rows(), pCov->cols()));
 			}
+			if(num_iters > 0)
+			{
+				LogFile logFile;
+				logFile << "BCM::Update::Iter: " << num_iters << "(" << factor << ")" << std::endl;
+			}
+//			if(L.info() != Eigen::/*ComputationInfo::*/Success)
+//			{
+//				GP::Exception e;
+//				switch(L.info())
+//				{
+//					case Eigen::/*ComputationInfo::*/NumericalIssue :
+//					{
+//						e = "BCM::Update::NumericalIssue";
+//						break;
+//					}
+//					case Eigen::/*ComputationInfo::*/NoConvergence :
+//					{
+//						e = "BCM::Update::NoConvergence";
+//						break;
+//					}
+//#if EIGEN_VERSION_AT_LEAST(3,2,0)
+//					case Eigen::/*ComputationInfo::*/InvalidInput :
+//					{
+//						e = "BCM::Update::InvalidInput";
+//						break;
+//					}
+//#endif
+//				}
+//				throw e;
+//			}
 
 			// dimension
 			const size_t dim = D();
@@ -237,8 +271,11 @@ protected:
 	  * @detail	\f$\mathbf\Sigma_* = \left(\sum_{k=1}^K \mathbf\Sigma_k^{-1} - (K-1)\mathbf\Simga_0^{-1}\right)^{-1}\f$
 	  */
 	MatrixPtr m_pSumOfInvCovs;
+
+	static const float DIAGONAL_TERM_FOR_SINGULAR_MATRIX;
 };
 
+const float BCM::DIAGONAL_TERM_FOR_SINGULAR_MATRIX = 1e-8f;
 }
 
 

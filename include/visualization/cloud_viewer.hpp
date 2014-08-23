@@ -42,11 +42,60 @@ void addPointCloudNormals<pcl::PointNormal>(pcl::visualization::PCLVisualizer			
 }
 
 template <typename PointT>
+void show(const std::string												&strWindowName,
+			 const typename pcl::PointCloud<PointT>::ConstPtr		&pPointCloud,
+			 const double														scale = 0.1,
+			 const float														downSampleLeafSize = 0.f)
+{
+	// visualizer
+	pcl::visualization::PCLVisualizer viewer(strWindowName);
+	//viewer.setBackgroundColor(1, 1, 1);
+	viewer.setBackgroundColor(0, 0, 0);
+	viewer.addCoordinateSystem(1.0);
+
+	// points
+	typename pcl::PointCloud<PointT>::ConstPtr pTempPointCloud;
+	if(downSampleLeafSize > 0)		pTempPointCloud = downSample<PointT>(pPointCloud, downSampleLeafSize);
+	else									pTempPointCloud = pPointCloud;
+
+	// draw points
+	pcl::visualization::PointCloudColorHandlerGenericField<PointT> hColor(pTempPointCloud, "z");
+	viewer.addPointCloud<PointT>(pTempPointCloud, hColor, "cloud");
+	viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "cloud");
+
+	// draw normal vectors
+	addPointCloudNormals<PointT>(viewer, pTempPointCloud, scale, "normals");
+
+	// draw bounding box
+	PointT min_pt, max_pt;
+	pcl::getMinMax3D(*pPointCloud, min_pt, max_pt);
+	viewer.addCube(min_pt.x, max_pt.x, min_pt.y, max_pt.y, min_pt.z, max_pt.z);
+	std::stringstream ss_cube;
+	ss_cube << "min: " << min_pt.x << ", " << min_pt.y << ", " << min_pt.z << endl;
+	ss_cube << "max: " << max_pt.x << ", " << max_pt.y << ", " << max_pt.z << endl;
+	ss_cube << "size: " << max_pt.x - min_pt.x << ", " << max_pt.y - min_pt.y << ", " << max_pt.z - min_pt.z << endl;
+
+	// text and camera
+	viewer.addText(ss_cube.str(), 10, 100, "text_cube");
+	viewer.resetCameraViewpoint("cloud");
+
+	// pause
+	//viewer.spin();
+	while (!viewer.wasStopped())
+	{
+		viewer.spinOnce(100);
+		boost::this_thread::sleep(boost::posix_time::microseconds(100000));
+	}
+
+	// close
+	viewer.close();
+}
+
+template <typename PointT>
 void show(const std::string														&strWindowName,
 			 const std::vector<typename pcl::PointCloud<PointT>::Ptr>	&pPointClouds,
 			 const double																scale = 0.1,
-			 const bool																	fDownSample = false,
-			 const double																leafSize = 1.0)
+			 const float																downSampleLeafSize = 0.f)
 {
 	// visualizer
 	pcl::visualization::PCLVisualizer viewer(strWindowName);
@@ -60,19 +109,19 @@ void show(const std::string														&strWindowName,
 		std::stringstream ss_name; ss_name << (i+1) << " / " << pPointClouds.size();
 
 		// points
-		typename pcl::PointCloud<PointT>::ConstPtr pPointCloud;
-		if(fDownSample)	pPointCloud = downSample<PointT>(pPointClouds[i], leafSize);
-		else					pPointCloud = pPointClouds[i];
+		typename pcl::PointCloud<PointT>::ConstPtr pTempPointCloud;
+		if(downSampleLeafSize > 0)		pTempPointCloud = downSample<PointT>(pPointClouds[i], downSampleLeafSize);
+		else									pTempPointCloud = pPointClouds[i];
 
 		// draw points
 		std::string strPointCloudName = std::string("cloud: ") + ss_name.str();
-		pcl::visualization::PointCloudColorHandlerCustom<PointT> redColorHandle(pPointCloud, 255, 0, 0); // current: red
-		viewer.addPointCloud<PointT>(pPointCloud, redColorHandle, strPointCloudName);
+		pcl::visualization::PointCloudColorHandlerCustom<PointT> redColorHandle(pTempPointCloud, 255, 0, 0); // current: red
+		viewer.addPointCloud<PointT>(pTempPointCloud, redColorHandle, strPointCloudName);
 		viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, strPointCloudName);
 
 		// draw normal vectors
 		std::string strPointNormalName = std::string("normals: ") + ss_name.str();
-		addPointCloudNormals<PointT>(viewer, pPointCloud, scale, strPointNormalName);
+		addPointCloudNormals<PointT>(viewer, pTempPointCloud, scale, strPointNormalName);
 
 		// draw bounding box
 		PointT min_pt, max_pt;
@@ -103,8 +152,8 @@ void show(const std::string														&strWindowName,
 		viewer.spin();
 
 		// next
-		pcl::visualization::PointCloudColorHandlerCustom<PointT> grayColorHandle(pPointCloud, 200, 200, 200); // previous: gray
-		viewer.updatePointCloud<PointT>(pPointCloud, grayColorHandle, strPointCloudName);
+		pcl::visualization::PointCloudColorHandlerCustom<PointT> grayColorHandle(pTempPointCloud, 200, 200, 200); // previous: gray
+		viewer.updatePointCloud<PointT>(pTempPointCloud, grayColorHandle, strPointCloudName);
 	}
 
 	// close

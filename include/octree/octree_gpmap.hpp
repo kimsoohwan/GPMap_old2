@@ -19,6 +19,7 @@
 
 // OpenGP
 #include "GP.h"
+using GP::LogFile;
 
 // GPMap
 #include "util/util.hpp"						// min max
@@ -26,9 +27,11 @@
 #include "bcm/bcm.hpp"							// BCM
 #include "bcm/bcm_serializable.hpp"			// BCM_Serializable
 #include "data/test_data.hpp"					// meshGrid
+#include "data/training_data.hpp"			// generateTrainingData
 #include "plsc/plsc.hpp"						// PLSC
 #include "octomap/octomap.hpp"				// Octomap
-#include "util/timer.hpp"						// boost::timer
+#include "util/timer.hpp"						// CPU_Times, CPU_Timer
+#include "io/io.hpp"								// savePointCloud
 namespace GPMap {
 
 typedef OctreeContainerIntVectorBCM<BCM>					LeafT;
@@ -97,17 +100,22 @@ public:
 		PCL_WARN("Testing octree-based GPMap\n");
 #endif
 
-		std::cout << "BLOCK_SIZE_: "						<< BLOCK_SIZE_ << std::endl;
-		std::cout << "CELL_SIZE_: "						<< CELL_SIZE_ << std::endl;
-		std::cout << "NUM_CELLS_PER_AXIS_: "			<< NUM_CELLS_PER_AXIS_ << std::endl;
-		std::cout << "NUM_CELLS_PER_BLOCK_: "			<< NUM_CELLS_PER_BLOCK_ << std::endl;
-		std::cout << "MIN_NUM_POINTS_TO_PREDICT_: "	<< MIN_NUM_POINTS_TO_PREDICT_ << std::endl;
-		std::cout << "FLAG_INDEPENDENT_BCM_: "			<< FLAG_INDEPENDENT_BCM_ << std::endl;
-		std::cout << "FLAG_DUPLICATE_POINTS_: "		<< FLAG_DUPLICATE_POINTS_ << std::endl;
+		// log file
+		LogFile logFile;
+		logFile << "BLOCK_SIZE_: "						<< BLOCK_SIZE_ << std::endl;
+		logFile << "CELL_SIZE_: "						<< CELL_SIZE_ << std::endl;
+		logFile << "NUM_CELLS_PER_AXIS_: "			<< NUM_CELLS_PER_AXIS_ << std::endl;
+		logFile << "NUM_CELLS_PER_BLOCK_: "			<< NUM_CELLS_PER_BLOCK_ << std::endl;
+		logFile << "MIN_NUM_POINTS_TO_PREDICT_: "	<< MIN_NUM_POINTS_TO_PREDICT_ << std::endl;
+		logFile << "FLAG_INDEPENDENT_BCM_: "		<< FLAG_INDEPENDENT_BCM_ << std::endl;
+		logFile << "FLAG_DUPLICATE_POINTS_: "		<< FLAG_DUPLICATE_POINTS_ << std::endl;
+		logFile << std::endl;
 
 		// set the test positions at (0, 0, 0)
 		meshGrid(Eigen::Vector3f(0.f, 0.f, 0.f), NUM_CELLS_PER_AXIS_, CELL_SIZE_, m_pXs);
-   }
+
+		//logFile << "pXs (init)" << std::endl << *m_pXs << std::endl << std::endl;	
+  }
 
 	/** @brief Empty class constructor */
 	virtual ~OctreeGPMap()
@@ -146,11 +154,9 @@ public:
 		maxZ = ceil (maxZ/BLOCK_SIZE_ + 1.f)*BLOCK_SIZE_;
 		Parent::defineBoundingBox(minX, minY, minZ, maxX, maxY, maxZ);
 
-#ifdef _TEST_OCTREE_GPMAP
-		std::cout << "min: (" << minX_ << ", " << minY_ << ", " << minZ_ << "), "
-					 << "max: (" << maxX_ << ", " << maxY_ << ", " << maxZ_ << ")" << std::endl;
-#endif
-
+		LogFile logFile;
+		logFile << "min: (" << minX_ << ", " << minY_ << ", " << minZ_ << "), "
+				  << "max: (" << maxX_ << ", " << maxY_ << ", " << maxZ_ << ")" << std::endl;
 	}
 
    /** @brief Provide a pointer to the input data set.
@@ -181,7 +187,7 @@ public:
 	  *				where assertion is activated when this->leafCount_!=0.
 	  * @return		Elapsed time (user/system/wall cpu times)
 	  */
-	boost::timer::cpu_times addPointsFromInputCloud()
+	CPU_Times addPointsFromInputCloud()
 	{
 		// assert (this->leafCount_==0);
 
@@ -227,7 +233,7 @@ public:
 #endif
 
 		// timer - start
-		boost::timer::cpu_timer timer;
+		CPU_Timer timer;
 
 		// add the new point cloud
 		if(indices_)
@@ -307,7 +313,13 @@ public:
 #endif
 
 		// timer - end
-		return timer.elapsed();
+		CPU_Times elapsed = timer.elapsed();
+
+		LogFile logFile;
+		logFile << "min: (" << minX_ << ", " << minY_ << ", " << minZ_ << "), "
+				  << "max: (" << maxX_ << ", " << maxY_ << ", " << maxZ_ << ")" << std::endl;
+
+		return elapsed;
 	}
 
 	/** @brief		Train hyperparameters 
@@ -352,15 +364,18 @@ public:
 	 */
 	GP::DlibScalar operator()(const GP::DlibVector &logDlib) const
 	{
+		// log file
+		LogFile logFile;
+
 		// Sum of negative log marginalizations of all leaf nodes
 		GP::DlibScalar sumNlZ(0);
 
 		// convert a Dlib vector to GP hyperparameters
 		Hyp logHyp;
 		GP::Dlib2Hyp<Scalar, MeanFunc, CovFunc, LikFunc>(logDlib, logHyp);
-		std::cout << "hyp.mean = " << std::endl << logHyp.mean.array().exp().matrix() << std::endl << std::endl;
-		std::cout << "hyp.cov = "  << std::endl << logHyp.cov.array().exp().matrix()  << std::endl << std::endl;
-		std::cout << "hyp.lik = "  << std::endl << logHyp.lik.array().exp().matrix()  << std::endl << std::endl;
+		logFile << "hyp.mean = " << std::endl << logHyp.mean.array().exp().matrix() << std::endl << std::endl;
+		logFile << "hyp.cov = "  << std::endl << logHyp.cov.array().exp().matrix()  << std::endl << std::endl;
+		logFile << "hyp.lik = "  << std::endl << logHyp.lik.array().exp().matrix()  << std::endl << std::endl;
 
 		// for each leaf node
 		LeafNode* pLeafNode;
@@ -371,7 +386,7 @@ public:
 		LeafNodeIterator iter(*this);
 		while(*++iter)
 #else
-		std::cout << "Total: " << m_numRandomBlocks << " / " << m_nonEmptyBlockCenterPointXYZList.size() << " - ";
+		logFile << "Total: " << m_numRandomBlocks << " / " << m_nonEmptyBlockCenterPointXYZList.size() << " - ";
 		pcl::octree::OctreeKey key;
 		for(PointXYZVList::const_iterator iter = m_nonEmptyBlockCenterPointXYZList.begin();
 			 (iter != m_nonEmptyBlockCenterPointXYZList.cend()) && (blockCount < m_numRandomBlocks);
@@ -391,7 +406,7 @@ public:
 
 			// if there is no point in the node, ignore it
 			if(indexList.size() < MIN_NUM_POINTS_TO_PREDICT_) continue;
-			std::cout << blockCount << "(" << indexList.size() << "), ";
+			logFile << blockCount << "(" << indexList.size() << "), ";
 
 			// training data
 			DerivativeTrainingData derivativeTrainingData;
@@ -411,26 +426,42 @@ public:
 			sumNlZ += static_cast<GP::DlibScalar>(nlZ);
 		}
 
-		std::cout << ": " << sumNlZ << std::endl << std::endl;
+		logFile << ": " << sumNlZ << std::endl << std::endl;
 		return sumNlZ;
 	}
 
 	/** @brief		Update the GPMap with new observations
 	  * @return		Elapsed time (user/system/wall cpu times)
 	  */
-	boost::timer::cpu_times update(const Hyp		&logHyp,
-											 const bool		fConsiderNeighboringBlocks = true,
-											 const int		maxIter = 0)
+	void
+	update(const Hyp		&logHyp,
+			 const int		maxIter,
+			 CPU_Times	&t_training_total,
+			 CPU_Times	&t_predict_total,
+			 CPU_Times	&t_combine_total)
 	{
 #ifdef _TEST_OCTREE_GPMAP
 		PCL_INFO("More than one points should be dangled in itself or neighbors.\n");
 #endif
+		// log file
+		LogFile logFile;
 
-		// timer - start
-		boost::timer::cpu_timer timer;
+		//logFile << "update" << std::endl;	
+		//logFile << logHyp.cov(0) << std::endl;
+		//logFile << logHyp.cov(1) << std::endl;
+		//logFile << logHyp.lik(0) << std::endl;
+		//logFile << logHyp.lik(1) << std::endl;
+
+		// times
+		t_training_total.clear();
+		t_predict_total.clear();
+		t_combine_total.clear();
+		CPU_Times	t_training;
+		CPU_Times	t_predict;
+		CPU_Times	t_combine;
 
 		// if a point index is duplicated to 
-		if(FLAG_DUPLICATE_POINTS_ || !fConsiderNeighboringBlocks)
+		if(FLAG_DUPLICATE_POINTS_)
 		{
 			// leaf node iterator
 			LeafNodeIterator iter(*this);
@@ -462,7 +493,10 @@ public:
 				LeafNode *pLeafNode = static_cast<LeafNode *>(iter.getCurrentOctreeNode());
 
 				// predict
-				predict(logHyp, indexList, min_pt, pLeafNode, maxIter);
+				predict(logHyp, indexList, min_pt, pLeafNode, maxIter, t_training, t_predict, t_combine);
+				t_training_total	+= t_training;
+				t_predict_total	+= t_predict;
+				t_combine_total	+= t_combine;
 			}
 		}
 		else
@@ -474,7 +508,7 @@ public:
 			// create empty neigboring blocks if necessary
 			PointXYZVListPtr pNonEmptyBlockCenterPointXYZList = createEmptyNeigboringBlocks();
 			size_t NUM_NON_EMPTY_BLOCKS = pNonEmptyBlockCenterPointXYZList->size();
-			std::cout << "Total: " << NUM_NON_EMPTY_BLOCKS << ": ";
+			logFile << "Total: " << NUM_NON_EMPTY_BLOCKS << ": ";
 
 			// leaf node iterator
 			LeafNodeIterator iter(*this);
@@ -526,22 +560,25 @@ public:
 #endif
 				// if the total number of points are too small, ignore it.
 				if(indexList.size() < MIN_NUM_POINTS_TO_PREDICT_) continue;
-				std::cout << blockCount << "(" << indexList.size() << "), ";
+				logFile << blockCount << "(" << indexList.size() << "), ";
 
 				// leaf node
 				LeafNode *pLeafNode = static_cast<LeafNode *>(iter.getCurrentOctreeNode());
 
 				// predict
-				predict(logHyp, indexList, min_pt, pLeafNode, maxIter);
+				predict(logHyp, indexList, min_pt, pLeafNode, maxIter, t_training, t_predict, t_combine);
+				t_training_total	+= t_training;
+				t_predict_total	+= t_predict;
+				t_combine_total	+= t_combine;
 
 				// next
 				blockCount++;
 			}
-			std::cout << std::endl;
+			logFile << std::endl;
 		}
 
-		// timer - end
-		return timer.elapsed();
+		logFile << "min: (" << minX_ << ", " << minY_ << ", " << minZ_ << "), "
+				  << "max: (" << maxX_ << ", " << maxY_ << ", " << maxZ_ << ")" << std::endl;
 	}
 
 	/** @brief		Get occupied voxel center points
@@ -683,6 +720,8 @@ public:
 		for(size_t i = 0; i < cellCenterPointXYZVector.size(); i++)
 		{
 			const pcl::PointXYZ &point = cellCenterPointXYZVector[i];
+
+			// updateNode or setNodeValue
 			octomap.updateNode(static_cast<double>(point.x), static_cast<double>(point.y), static_cast<double>(point.z), true);
 		}
 
@@ -783,15 +822,124 @@ public:
 			}
 		}
 
-		std::cout << "Min Mean: " << minMean << std::endl;
-		std::cout << "Max Mean: " << maxMean << std::endl;
-		std::cout << "Min Var: "  << minVar  << std::endl;
-		std::cout << "Max Var: "  << maxVar  << std::endl;
-		std::cout << "Num Blocks: "  << nBlocks  << std::endl;
-		std::cout << "Num Occupied Cells: "  << nOccupiedCells  << std::endl;
+		logFile << "Min Mean: " << minMean << std::endl;
+		logFile << "Max Mean: " << maxMean << std::endl;
+		logFile << "Min Var: "  << minVar  << std::endl;
+		logFile << "Max Var: "  << maxVar  << std::endl;
+		logFile << "Num Blocks: "  << nBlocks  << std::endl;
+		logFile << "Num Occupied Cells: "  << nOccupiedCells  << std::endl;
 
 		// save
 		return octomap.save(strFilenameWithoutExtension);
+	}
+
+	/** @brief Save as an octomap */
+	void saveAsPointXYZI(const std::string &strFilePath)
+	{
+		// point normal cloud
+		pcl::PointCloud<pcl::PointXYZI>::Ptr pPointXYZICloud(new pcl::PointCloud<pcl::PointXYZI>());
+
+		// leaf node iterator
+		LeafNodeIterator iter(*this);
+
+		// for each leaf node
+		Eigen::Vector3f min_pt;
+		VectorPtr pMean;
+		MatrixPtr pVariance;
+		const float HALF_CELL_SIZE = CELL_SIZE_ / 2.f;
+		float minMean	= std::numeric_limits<float>::max();
+		float maxMean	= std::numeric_limits<float>::min();
+		float minVar	= std::numeric_limits<float>::max();
+		float maxVar	= std::numeric_limits<float>::min();
+		size_t nBlocks(0);
+		size_t nCells(0);
+		pcl::PointXYZI point;
+		while(*++iter)
+		{
+			// key
+			const pcl::octree::OctreeKey &key = iter.getCurrentOctreeKey();
+
+			// min point
+			genVoxelMinPoint(key, min_pt);
+
+			// leaf node
+			LeafNode *pLeafNode = static_cast<LeafNode *>(iter.getCurrentOctreeNode());
+
+			// mean, variance
+			if(!(pLeafNode->get(pMean, pVariance))) continue;
+
+			// check occupancy
+			nBlocks++;
+			if(pVariance->cols() == 1)
+			{
+				// check if each cell is occupie
+				for(size_t ix = 0; ix < NUM_CELLS_PER_AXIS_; ix++)
+					for(size_t iy = 0; iy < NUM_CELLS_PER_AXIS_; iy++)
+						for(size_t iz = 0; iz < NUM_CELLS_PER_AXIS_; iz++)
+						{
+							// current index
+							const size_t row = xyz2row(NUM_CELLS_PER_AXIS_, ix, iy, iz);
+
+							// point data
+							point.x = (*m_pXs)(row, 0) + min_pt.x() + HALF_CELL_SIZE;	// x
+							point.y = (*m_pXs)(row, 1) + min_pt.y() + HALF_CELL_SIZE;	// y
+							point.z = (*m_pXs)(row, 2) + min_pt.z() + HALF_CELL_SIZE;	// z
+							point.data_c[0] = (*pMean)(row);				// mean
+							point.data_c[1] = (*pVariance)(row, 0);	// var
+
+							// add
+							pPointXYZICloud->push_back(point);
+
+							// min, max
+							minMean	= min<float>(minMean,	(*pMean)(row));
+							maxMean	= max<float>(maxMean,	(*pMean)(row));
+							minVar	= min<float>(minVar,		(*pVariance)(row, 0));
+							maxVar	= max<float>(maxVar,		(*pVariance)(row, 0));
+							nCells++;
+						}
+			}
+			else
+			{
+				// check if each cell is occupie
+				for(size_t ix = 0; ix < NUM_CELLS_PER_AXIS_; ix++)
+					for(size_t iy = 0; iy < NUM_CELLS_PER_AXIS_; iy++)
+						for(size_t iz = 0; iz < NUM_CELLS_PER_AXIS_; iz++)
+						{
+							// current index
+							const size_t row = xyz2row(NUM_CELLS_PER_AXIS_, ix, iy, iz);
+
+							// point data
+							point.x = (*m_pXs)(row, 0) + min_pt.x() + HALF_CELL_SIZE;	// x
+							point.y = (*m_pXs)(row, 1) + min_pt.y() + HALF_CELL_SIZE;	// y
+							point.z = (*m_pXs)(row, 2) + min_pt.z() + HALF_CELL_SIZE;	// z
+							point.data_c[0] = (*pMean)(row);				// mean
+							point.data_c[1] = (*pVariance)(row, row);	// var
+
+							// add
+							pPointXYZICloud->push_back(point);
+
+							// min, max
+							minMean	= min<float>(minMean,	(*pMean)(row));
+							maxMean	= max<float>(maxMean,	(*pMean)(row));
+							minVar	= min<float>(minVar,		(*pVariance)(row, row));
+							maxVar	= max<float>(maxVar,		(*pVariance)(row, row));
+							nCells++;
+						}
+			}
+		}
+
+		// Log file
+		LogFile logFile;
+		logFile << "Min Mean: " << minMean << std::endl;
+		logFile << "Max Mean: " << maxMean << std::endl;
+		logFile << "Min Var: "  << minVar  << std::endl;
+		logFile << "Max Var: "  << maxVar  << std::endl;
+		logFile << "Num Blocks: " << nBlocks  << std::endl;
+		logFile << "Num Cells: "  << nCells  << std::endl;
+
+		// save
+		const bool fBinary = true;
+		savePointCloud<pcl::PointXYZI>(pPointXYZICloud, strFilePath, fBinary);
 	}
 
 	/** @brief Get the total number of point indices stored in each voxel */
@@ -1208,18 +1356,39 @@ protected:
 	  *				Thus, prediction is done in OctreeGPMap not in LeafT.
 	  *				But the result will be dangled to LeafT for further BCM update.
 	  */
-	void predict(const Hyp					&logHyp,
-					 const Indices				&indexList, 
-					 Eigen::Vector3f			&min_pt,
-					 LeafNode					*pLeafNode,
-					 const int					maxIter)
+	void predict(const Hyp						&logHyp,
+					 const Indices					&indexList, 
+					 Eigen::Vector3f				&min_pt,
+					 LeafNode *						pLeafNode,
+					 const int						maxIter,
+					 CPU_Times						&t_training,
+					 CPU_Times						&t_predict,
+					 CPU_Times						&t_combine)
 	{
+		// log file
+		//LogFile logFile;
+
+		// times
+		t_training.clear();
+		t_predict.clear();
+		t_combine.clear();
+
+		//logFile << "Training Data" << std::endl;	
+		//for(size_t i = 0; i < indexList.size(); i++)
+		//{
+		//	logFile << input_->points[indexList[i]].x << ", " << input_->points[indexList[i]].y << ", " << input_->points[indexList[i]].z << ": "
+		//			  << input_->points[indexList[i]].normal_x << ", " << input_->points[indexList[i]].normal_y << ", " << input_->points[indexList[i]].normal_z << std::endl;
+		//}
+
 		// training data
 		DerivativeTrainingData derivativeTrainingData;
 		MatrixPtr pX, pXd; VectorPtr pYYd;
 		//generateTrainingData(input_, indexList, m_sensorPosition, m_gap, pX, pXd, pYYd);
 		generateTrainingData(input_, indexList, m_gap, pX, pXd, pYYd);
 		derivativeTrainingData.set(pX, pXd, pYYd);
+		//logFile << "pX" << std::endl << *pX << std::endl << std::endl;	
+		//logFile << "pXd" << std::endl << *pXd << std::endl << std::endl;	
+		//logFile << "pYYd" << std::endl << *pYYd << std::endl << std::endl;	
 
 		// test data
 		TestData testData;
@@ -1228,6 +1397,9 @@ protected:
 		minValue << min_pt.x(), min_pt.y(), min_pt.z();
 		pXs->noalias() = (*m_pXs) + minValue.replicate(NUM_CELLS_PER_BLOCK_, 1);
 		testData.set(pXs);
+		//logFile << "Test Data" << std::endl;	
+		//logFile << "corner: " << minValue(0, 0) << ", " << minValue(0, 1) << ", " << minValue(0, 2) << " : " << CELL_SIZE_/2.f << std::endl << std::endl;
+		//logFile << "pXs" << std::endl << *pXs << std::endl << std::endl;	
 
 		// train
 		//Hyp localLogHyp(logHyp);
@@ -1236,22 +1408,67 @@ protected:
 		localLogHyp.cov = logHyp.cov;
 		localLogHyp.lik = logHyp.lik;
 
-		if(maxIter > 0)
-			GPType::train<GP::BOBYQA, GP::NoStopping>(localLogHyp, derivativeTrainingData, maxIter);
+		//logFile << "predict" << std::endl;	
+		//logFile << localLogHyp.cov(0) << std::endl;
+		//logFile << localLogHyp.cov(1) << std::endl;
+		//logFile << localLogHyp.lik(0) << std::endl;
+		//logFile << localLogHyp.lik(1) << std::endl;
 
-		// predict
+		// train
+		if(maxIter > 0)
+		{
+			// timer - start
+			CPU_Timer timer;
+
+			// train
+			GPType::train<GP::BOBYQA, GP::NoStopping>(localLogHyp, derivativeTrainingData, maxIter);
+			//logFile << "trained hyperparameters" << std::endl;	
+			//logFile << exp(localLogHyp.cov(0)) << std::endl;
+			//logFile << exp(localLogHyp.cov(1)) << std::endl;
+			//logFile << exp(localLogHyp.lik(0)) << std::endl;
+			//logFile << exp(localLogHyp.lik(1)) << std::endl;
+			//logFile << std::endl;
+			
+			// timer - end
+			t_training = timer.elapsed();
+		}
+
+		// predict and update
 		try
 		{
 			// predict
-			GPType::predict(localLogHyp, derivativeTrainingData, testData, FLAG_INDEPENDENT_BCM_); // 5000
-			//GPType::predict(logHyp, derivativeTrainingData, testData, FLAG_INDEPENDENT_BCM_, pXs->rows());
+			{
+				// timer - start
+				CPU_Timer timer;
 
+				// predict
+				GPType::predict(localLogHyp, derivativeTrainingData, testData, FLAG_INDEPENDENT_BCM_, 0); // 5000
+				//GPType::predict(logHyp, derivativeTrainingData, testData, FLAG_INDEPENDENT_BCM_, pXs->rows());
+
+				// timer - end
+				t_predict = timer.elapsed();
+			}
+			
 			// update BCM
-			pLeafNode->update(testData.pMu(), testData.pSigma());
+			{
+				//logFile << "mu" << std::endl << *(testData.pMu()) << std::endl << std::endl;	
+				//logFile << "Sigma" << std::endl << *(testData.pSigma()) << std::endl << std::endl;	
+
+				// timer - start
+				CPU_Timer timer;
+
+				// update
+				pLeafNode->update(testData.pMu(), testData.pSigma());
+
+				// timer - end
+				t_combine = timer.elapsed();
+			}
 		}
 		catch(GP::Exception &e)
 		{
-			std::cerr << e.what() << std::endl;
+			// log file
+			LogFile logFile;
+			logFile << e.what() << std::endl;
 		}
 
 	}

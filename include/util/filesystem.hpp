@@ -15,19 +15,19 @@
 
 namespace GPMap {
 
-inline std::string fileExtension(const std::string &str_file_path)
+inline std::string extractFileExtension(const std::string &strFilePath)
 {
 	// boost path
-	boost::filesystem::path p(str_file_path);
+	boost::filesystem::path p(strFilePath);
 
 	// extension
 	return p.extension().string();
 }
 
-inline std::string fileName(const std::string &str_file_path)
+inline std::string extractFileName(const std::string &strFilePath)
 {
 	// boost path
-	boost::filesystem::path p(str_file_path);
+	boost::filesystem::path p(strFilePath);
 
 	// extension
 	return p.filename().string();
@@ -35,18 +35,18 @@ inline std::string fileName(const std::string &str_file_path)
 
 
 /** @brief Create a directory */
-bool create_directory(const std::string dir_name)
+bool create_directory(const std::string strDirPath)
 {
-	return boost::filesystem::create_directory(dir_name);
+	return boost::filesystem::create_directory(strDirPath);
 }
 
 /** @brief Search a file from a directory and its subdirectories */
-bool find_file_in_subdirectories(const std::string		&str_dir_path,		// in this directory,
-											const std::string		&str_file_name,	// search for this name,
-											std::string				&str_path_found)	// placing path here if found
+bool find_file_in_subdirectories(const std::string		&strDirPath,		// in this directory,
+											const std::string		&strFileName,	// search for this name,
+											std::string				&strFilePathFound)	// placing path here if found
 {
 	// current path
-	boost::filesystem::path dir_path(str_dir_path);
+	boost::filesystem::path dir_path(strDirPath);
 
 	// check if there exists the path
 	if(!boost::filesystem::exists(dir_path)) return false;
@@ -59,13 +59,13 @@ bool find_file_in_subdirectories(const std::string		&str_dir_path,		// in this d
 		if(boost::filesystem::is_directory(*iter))
 		{
 			// search the file recursively
-			if(find_file_in_subdirectories((*iter).path().string(), str_file_name, str_path_found)) return true;
+			if(find_file_in_subdirectories((*iter).path().string(), strFileName, strFilePathFound)) return true;
 		}
 
 		// if it is a file
-		else if((*iter).path().filename() == str_file_name) // see below
+		else if((*iter).path().filename() == strFileName) // see below
 		{
-			str_path_found = (*iter).path().string();
+			strFilePathFound = (*iter).path().string();
 			return true;
 		}
 	}
@@ -73,18 +73,18 @@ bool find_file_in_subdirectories(const std::string		&str_dir_path,		// in this d
 	return false;
 }
 
-bool search_files(const std::string				&str_dir_path,			// in this directory,
-						const std::string				&str_ext_name,			// search for this extension,
-						std::vector<std::string>	&str_file_name_list)	// placing file names here if found
+bool search_files(const std::string				&strDirPath,			// in this directory,
+						const std::string				&strExtName,			// search for this extension,
+						std::vector<std::string>	&strFileNameList)	// placing file names here if found
 {
 	// clear
-	str_file_name_list.clear();
+	strFileNameList.clear();
 
 	// filter
 	//const boost::regex filter("somefiles.*\.txt");
 
 	// current path
-	boost::filesystem::path dir_path(str_dir_path);
+	boost::filesystem::path dir_path(strDirPath);
 
 	// for all items in the directory - files and subdirectories
 	boost::filesystem::directory_iterator end_iter; // default construction yields past-the-end
@@ -98,13 +98,13 @@ bool search_files(const std::string				&str_dir_path,			// in this directory,
 		 //if(!boost::regex_match((*iter).path().filename(), what, filter)) continue;
 		 
 		 // if it is a file
-		 if((*iter).path().extension().string() == str_ext_name) // see below
+		 if((*iter).path().extension().string() == strExtName) // see below
 		 
 		 // file matches, store it
-		 str_file_name_list.push_back((*iter).path().filename().string());
+		 strFileNameList.push_back((*iter).path().filename().string());
 	}
 
-	return str_file_name_list.size() > 0;
+	return strFileNameList.size() > 0;
 }
 
 }

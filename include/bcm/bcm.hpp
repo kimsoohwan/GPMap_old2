@@ -88,7 +88,14 @@ public:
 		if(isIndependent())
 		{
 			// Sigma
-			pCov->noalias() = m_pSumOfInvCovs->cwiseInverse();
+			//pCov->noalias() = m_pSumOfInvCovs->cwiseInverse();
+			// make it stable
+			for(size_t row = 0; row < m_pSumOfInvCovs->rows(); row++)
+			{
+				if((*m_pSumOfInvCovs)(row, 0) > EPSILON)	(*pCov)(row, 0) = (*m_pSumOfInvCovs)(row, 0);
+				else													(*pCov)(row, 0) = EPSILON;
+			}
+			pCov->noalias() = pCov->cwiseInverse();
 
 			// mean
 			pMean->noalias() = pCov->cwiseProduct(*m_pSumOfWeightedMeans);
@@ -105,7 +112,7 @@ public:
 			while(L.info() != Eigen::/*ComputationInfo::*/Success)
 			{
 				num_iters += 1.f;
-				factor = static_cast<float>(powf(10, num_iters)) * DIAGONAL_TERM_FOR_SINGULAR_MATRIX;
+				factor = static_cast<float>(powf(10, num_iters)) * EPSILON;
 				L.compute(*m_pSumOfInvCovs + factor * Matrix::Identity(m_pSumOfInvCovs->rows(), m_pSumOfInvCovs->cols()));
 			}
 			if(num_iters > 0)
@@ -187,7 +194,15 @@ public:
 		if(isIndependent())
 		{
 			// inv(Sigma)
-			invCov.noalias() = pCov->cwiseInverse();
+			//invCov.noalias() = pCov->cwiseInverse();
+
+			// make it stable
+			for(size_t row = 0; row < pCov->rows(); row++)
+			{
+				if((*pCov)(row, 0) > EPSILON) invCov(row, 0) = (*pCov)(row, 0);
+				else									invCov(row, 0) = EPSILON;
+			}
+			invCov.noalias() = invCov.cwiseInverse();
 
 			// inv(Sigma)*mean
 			weightedMean.noalias() = invCov.cwiseProduct(*pMean);
@@ -204,7 +219,7 @@ public:
 			while(L.info() != Eigen::/*ComputationInfo::*/Success)
 			{
 				num_iters += 1.f;
-				factor = static_cast<float>(powf(10, num_iters)) * DIAGONAL_TERM_FOR_SINGULAR_MATRIX;
+				factor = static_cast<float>(powf(10, num_iters)) * EPSILON;
 				L.compute(*pCov + factor * Matrix::Identity(pCov->rows(), pCov->cols()));
 			}
 			if(num_iters > 0)
@@ -272,10 +287,10 @@ protected:
 	  */
 	MatrixPtr m_pSumOfInvCovs;
 
-	static const float DIAGONAL_TERM_FOR_SINGULAR_MATRIX;
+	static const float EPSILON;
 };
 
-const float BCM::DIAGONAL_TERM_FOR_SINGULAR_MATRIX = 1e-8f;
+const float BCM::EPSILON = 1e-8f; //1e-10f
 }
 
 

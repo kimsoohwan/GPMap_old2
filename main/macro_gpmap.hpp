@@ -25,6 +25,64 @@ template<typename PointT,
 						 template<typename> class,
 						 template<typename> class,
 						 template<typename> class> class InfMethod>
+void macro_gpmap_training(const double		BLOCK_SIZE, 
+								  const size_t		NUM_CELLS_PER_AXIS,
+								  const bool		FLAG_INDEPENDENT_BCM,
+								  const bool		FLAG_DUPLICATE_POINTS,
+								  const size_t		MIN_NUM_POINTS_TO_PREDICT,
+								  typename GP::GaussianProcess<float, MeanFunc, CovFunc, LikFunc, InfMethod>::Hyp	&logHyp,				// hyperparameters
+								  const typename pcl::PointCloud<PointT>::ConstPtr												&pAllPointCloud,	// observations
+								  const float																								gap)					// gap for free points
+{
+	// log file
+	LogFile logFile;
+
+	// get bounding box
+	pcl::PointXYZ min_pt, max_pt;
+	getMinMaxPointXYZ<PointT>(*pAllPointCloud, min_pt, max_pt);
+
+	// gpmap
+	OctreeGPMap<PointT, MeanFunc, CovFunc, LikFunc, InfMethod> gpmap(BLOCK_SIZE, 
+																						  NUM_CELLS_PER_AXIS,
+																						  FLAG_INDEPENDENT_BCM, 
+																						  FLAG_DUPLICATE_POINTS,
+																						  MIN_NUM_POINTS_TO_PREDICT);
+	// set bounding box
+	logFile << "[0] Set bounding box" << std::endl << std::endl;
+	gpmap.defineBoundingBox(min_pt, max_pt);
+
+	// set input cloud
+	logFile << "[1] Set input cloud" << std::endl << std::endl;
+	gpmap.setInputCloud(pAllPointCloud, gap);
+
+	// add points from the input cloud
+	logFile << "[2] Add points from the input cloud" << std::endl;
+	logFile << gpmap.addPointsFromInputCloud() << std::endl << std::endl;
+
+	// train
+	logFile << "[4] Learning hyperparameters" << std::endl;
+	int MAX_ITER;					// 100
+	size_t NUM_RANDOM_BLOCKS;	// 100
+	std::cout << "Train - Max Iterations: ";		std::cin >> MAX_ITER;
+	std::cout << "Train - Num Random Blocks: ";	std::cin >> NUM_RANDOM_BLOCKS;
+	logFile << "- Train - Max Iterations: "		<< MAX_ITER				<< std::endl;
+	logFile << "- Train - Num Random Blocks: "	<< NUM_RANDOM_BLOCKS << std::endl;
+	GP::DlibScalar nlZ = gpmap.train(logHyp, MAX_ITER, NUM_RANDOM_BLOCKS);
+	logFile << "- nlZ: " << nlZ << std::endl << std::endl;
+	int j = 0; // hyperparameter index
+	for(int i = 0; i < logHyp.mean.size(); i++)		logFile << "- mean[" << i << "] = " << expf(logHyp.mean(i)) << std::endl;
+	for(int i = 0; i < logHyp.cov.size();  i++)		logFile << "- cov["  << i << "] = " << expf(logHyp.cov(i))  << std::endl;
+	for(int i = 0; i < logHyp.lik.size();  i++)		logFile << "- lik["  << i << "] = " << expf(logHyp.lik(i))  << std::endl;
+}
+
+template<typename PointT,
+			template<typename> class MeanFunc, 
+			template<typename> class CovFunc, 
+			template<typename> class LikFunc,
+			template <typename, 
+						 template<typename> class,
+						 template<typename> class,
+						 template<typename> class> class InfMethod>
 void macro_gpmap(const double		BLOCK_SIZE, 
 					  const size_t		NUM_CELLS_PER_AXIS,
 					  const bool		FLAG_INDEPENDENT_BCM,
@@ -33,7 +91,7 @@ void macro_gpmap(const double		BLOCK_SIZE,
 					  const typename GP::GaussianProcess<float, MeanFunc, CovFunc, LikFunc, InfMethod>::Hyp	&logHyp,				// hyperparameters
 					  const typename pcl::PointCloud<PointT>::ConstPtr														&pAllPointCloud,	// observations
 					  const float																										gap,					// gap for free points
-					  const int																											maxIter,				// number of iterations for training before update
+					  const int																											maxIterBeforeUpdate,					// number of iterations for training before update
 					  const std::string																								&strPCDFilePathWithoutExtension)	// save file path
 {
 	// log file
@@ -68,7 +126,7 @@ void macro_gpmap(const double		BLOCK_SIZE,
 
 	// update using GPR
 	logFile << "[3] Update using GPR" << std::endl;
-	gpmap.update(logHyp, maxIter, t_update_training, t_update_predict, t_update_combine);
+	gpmap.update(logHyp, maxIterBeforeUpdate, t_update_training, t_update_predict, t_update_combine);
 	logFile << "- Training hyp: " << t_update_training << std::endl << std::endl;
 	logFile << "- Predict GPR:  " << t_update_predict  << std::endl << std::endl;
 	logFile << "- Update BCM:   " << t_update_combine  << std::endl << std::endl;
@@ -94,7 +152,7 @@ void macro_gpmap(const double		BLOCK_SIZE,
 					  const typename GP::GaussianProcess<float, MeanFunc, CovFunc, LikFunc, InfMethod>::Hyp	&logHyp,				// hyperparameters
 					  const std::vector<typename pcl::PointCloud<PointT>::Ptr>											&pointCloudList,	// observations
 					  const float																										gap,					// gap for free points
-					  const int																											maxIter,				// number of iterations for training before update
+					  const int																											maxIterBeforeUpdate,					// number of iterations for training before update
 					  const std::string																								&strPCDFilePathWithoutExtension)	// save file path
 {
 	// log file
@@ -153,7 +211,7 @@ void macro_gpmap(const double		BLOCK_SIZE,
 
 		// update using GPR
 		logFile << "[3] Update using GPR" << std::endl;
-		gpmap.update(logHyp, maxIter, t_update_training, t_update_predict, t_update_combine);
+		gpmap.update(logHyp, maxIterBeforeUpdate, t_update_training, t_update_predict, t_update_combine);
 		logFile << "- Training hyp: " << t_update_training << std::endl << std::endl;
 		logFile << "- Predict GPR:  " << t_update_predict  << std::endl << std::endl;
 		logFile << "- Update BCM:   " << t_update_combine   << std::endl << std::endl;
@@ -166,6 +224,9 @@ void macro_gpmap(const double		BLOCK_SIZE,
 		std::stringstream ss;
 		ss << strPCDFilePathWithoutExtension << "_upto_" << i;
 		gpmap.saveAsPointCloud(ss.str());
+
+		// last
+		if(i == pointCloudList.size() - 1) gpmap.saveAsPointCloud(strPCDFilePathWithoutExtension);
 	}
 
 	// total time

@@ -1,4 +1,4 @@
-#if 0
+#if 1
 // Eigen
 #include "serialization/eigen_serialization.hpp" // Eigen
 //#define EIGEN_NO_DEBUG		// to speed up
@@ -73,7 +73,7 @@ int main(int argc, char** argv)
 	const bool		BCM								= false;
 	const float		GAP								= 0.001f;
 	const float		NO_GAP							= 0.f;
-	const int		maxIter							= 0;			// 100
+	const int		maxIterBeforeUpdate			= 0;			// 100
 	std::string		strFileName;
 
 	// hyperparameters
@@ -88,6 +88,20 @@ int main(int argc, char** argv)
 	logHyp.lik(0) = log(sigma_n);
 	logHyp.lik(1) = log(sigma_nd);
 
+	// [5-0] traininig
+	//strFileName = "gpmap_meanZero_covSEiso_training";
+	//logFile.open(strOutputDataFolder + strFileName + ".log");
+	//macro_gpmap_training<pcl::PointNormal, 
+	//							GP::MeanZeroDerObs, GP::CovSEisoDerObs, GP::LikGaussDerObs, 
+	//							GP::InfExactDerObs>(BLOCK_SIZE,						// block size
+	//													  NUM_CELLS_PER_AXIS,			// number of cells per each axie
+	//													  BCM,								// independent BCM
+	//													  NO_DUPLICATED_POINTS,			// no duplicated points
+	//													  MIN_NUM_POINTS_TO_PREDICT,	// min number of points to predict
+	//													  logHyp,							// hyperparameters
+	//													  pAllPointNormalCloud,			// observations
+	//													  NO_GAP);							// gap for free points
+
 	// [5-1] GPMap - batch - BCM - derivative obs.
 	strFileName = "gpmap_meanZero_covSEiso_batch_BCM_der";
 	logFile.open(strOutputDataFolder + strFileName + ".log");
@@ -101,7 +115,7 @@ int main(int argc, char** argv)
 											  logHyp,							// hyperparameters
 											  pAllPointNormalCloud,			// observations
 											  NO_GAP,							// gap for free points
-											  maxIter,							// number of iterations for training before update
+											  maxIterBeforeUpdate,			// number of iterations for training before update
 											  strOutputDataFolder + strFileName);	// save file path
 
 	// [5-2] GPMap - batch - BCM - function obs.
@@ -117,7 +131,7 @@ int main(int argc, char** argv)
 											  logHyp,							// hyperparameters
 											  pAllPointNormalCloud,			// observations
 											  GAP,								// gap for free points
-											  maxIter,							// number of iterations for training before update
+											  maxIterBeforeUpdate,			// number of iterations for training before update
 											  strOutputDataFolder + strFileName);	// save file path
 
 	// [5-3] GPMap - batch - independent BCM - derivative obs.
@@ -133,7 +147,7 @@ int main(int argc, char** argv)
 											  logHyp,							// hyperparameters
 											  pAllPointNormalCloud,			// observations
 											  NO_GAP,							// gap for free points
-											  maxIter,							// number of iterations for training before update
+											  maxIterBeforeUpdate,			// number of iterations for training before update
 											  strOutputDataFolder + strFileName);	// save file path
 
 	// [5-4] GPMap - batch - independent BCM - function obs.
@@ -149,7 +163,7 @@ int main(int argc, char** argv)
 											  logHyp,							// hyperparameters
 											  pAllPointNormalCloud,			// observations
 											  GAP,								// gap for free points
-											  maxIter,							// number of iterations for training before update
+											  maxIterBeforeUpdate,			// number of iterations for training before update
 											  strOutputDataFolder + strFileName);	// save file path
 
 	// [5-5] GPMap - incremental update - BCM - derivative obs.
@@ -165,7 +179,7 @@ int main(int argc, char** argv)
 											  logHyp,							// hyperparameters
 											  pointNormalCloudList,			// observations
 											  NO_GAP,							// gap for free points
-											  maxIter,							// number of iterations for training before update
+											  maxIterBeforeUpdate,			// number of iterations for training before update
 											  strOutputDataFolder + strFileName);	// save file path
 
 
@@ -182,7 +196,7 @@ int main(int argc, char** argv)
 											  logHyp,							// hyperparameters
 											  pointNormalCloudList,			// observations
 											  GAP,								// gap for free points
-											  maxIter,							// number of iterations for training before update
+											  maxIterBeforeUpdate,			// number of iterations for training before update
 											  strOutputDataFolder + strFileName);	// save file path
 
 	// [5-7] GPMap - incremental update - independent BCM - derivative obs.
@@ -198,7 +212,7 @@ int main(int argc, char** argv)
 											  logHyp,							// hyperparameters
 											  pointNormalCloudList,			// observations
 											  NO_GAP,							// gap for free points
-											  maxIter,							// number of iterations for training before update
+											  maxIterBeforeUpdate,			// number of iterations for training before update
 											  strOutputDataFolder + strFileName);	// save file path
 
 
@@ -216,7 +230,7 @@ int main(int argc, char** argv)
 											  logHyp,							// hyperparameters
 											  pointNormalCloudList,			// observations
 											  GAP,								// gap for free points
-											  maxIter,							// number of iterations for training before update
+											  maxIterBeforeUpdate,			// number of iterations for training before update
 											  strOutputDataFolder + strFileName);	// save file path
 
 /*

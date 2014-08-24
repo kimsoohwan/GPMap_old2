@@ -214,9 +214,12 @@ pip-log.txt
 #Mr Developer
 .mr.developer.cfg
 
+# Point Cloud
+*.pcd
+
 # Octomap data
-.ot
-.bt
+*.ot
+*.bt
 
 # Log file
-.log
+*.log

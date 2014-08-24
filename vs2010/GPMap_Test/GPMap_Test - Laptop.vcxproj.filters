@@ -16,6 +16,9 @@
     <ClInclude Include="..\..\test\serialization\test_eigen_serialization.hpp">
       <Filter>test\serialization</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\test\plsc\test_plsc.hpp">
+      <Filter>test\plsc</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="test">
@@ -29,6 +32,9 @@
     </Filter>
     <Filter Include="test\bcm">
       <UniqueIdentifier>{2b9148e7-8ad2-4fcc-99ea-31a3a162b817}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="test\plsc">
+      <UniqueIdentifier>{78fe696e-7231-4e9b-a447-7d430bfc1a69}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
 </Project>

@@ -5,6 +5,7 @@
 #include <cmath>			// floor, ceil
 #include <vector>
 #include <limits>			// std::numeric_limits<T>::min(), max()
+#include <algorithm>		// std::min(), max()
 
 // PCL
 #include <pcl/point_types.h>
@@ -833,11 +834,12 @@ public:
 		return octomap.save(strFilenameWithoutExtension);
 	}
 
+
 	/** @brief Save as an octomap */
-	void saveAsPointXYZI(const std::string &strFilePath)
+	void saveAsPointCloud(const std::string &strFilePathWithoutExtension)
 	{
 		// point normal cloud
-		pcl::PointCloud<pcl::PointXYZI>::Ptr pPointXYZICloud(new pcl::PointCloud<pcl::PointXYZI>());
+		pcl::PointCloud<pcl::PointNormal>::Ptr pPointNormalCloud(new pcl::PointCloud<pcl::PointNormal>());
 
 		// leaf node iterator
 		LeafNodeIterator iter(*this);
@@ -853,7 +855,7 @@ public:
 		float maxVar	= std::numeric_limits<float>::min();
 		size_t nBlocks(0);
 		size_t nCells(0);
-		pcl::PointXYZI point;
+		pcl::PointNormal	pointNormal;
 		while(*++iter)
 		{
 			// key
@@ -880,15 +882,13 @@ public:
 							// current index
 							const size_t row = xyz2row(NUM_CELLS_PER_AXIS_, ix, iy, iz);
 
-							// point data
-							point.x = (*m_pXs)(row, 0) + min_pt.x() + HALF_CELL_SIZE;	// x
-							point.y = (*m_pXs)(row, 1) + min_pt.y() + HALF_CELL_SIZE;	// y
-							point.z = (*m_pXs)(row, 2) + min_pt.z() + HALF_CELL_SIZE;	// z
-							point.data_c[0] = (*pMean)(row);				// mean
-							point.data_c[1] = (*pVariance)(row, 0);	// var
-
-							// add
-							pPointXYZICloud->push_back(point);
+							// point normal
+							pointNormal.x = (*m_pXs)(row, 0) + min_pt.x() + HALF_CELL_SIZE;	// x
+							pointNormal.y = (*m_pXs)(row, 1) + min_pt.y() + HALF_CELL_SIZE;	// y
+							pointNormal.z = (*m_pXs)(row, 2) + min_pt.z() + HALF_CELL_SIZE;	// z
+							pointNormal.normal_x = (*pMean)(row);			// mean
+							pointNormal.normal_y = (*pVariance)(row, 0);	// var
+							pPointNormalCloud->push_back(pointNormal);
 
 							// min, max
 							minMean	= min<float>(minMean,	(*pMean)(row));
@@ -908,15 +908,13 @@ public:
 							// current index
 							const size_t row = xyz2row(NUM_CELLS_PER_AXIS_, ix, iy, iz);
 
-							// point data
-							point.x = (*m_pXs)(row, 0) + min_pt.x() + HALF_CELL_SIZE;	// x
-							point.y = (*m_pXs)(row, 1) + min_pt.y() + HALF_CELL_SIZE;	// y
-							point.z = (*m_pXs)(row, 2) + min_pt.z() + HALF_CELL_SIZE;	// z
-							point.data_c[0] = (*pMean)(row);				// mean
-							point.data_c[1] = (*pVariance)(row, row);	// var
-
-							// add
-							pPointXYZICloud->push_back(point);
+							// point normal
+							pointNormal.x = (*m_pXs)(row, 0) + min_pt.x() + HALF_CELL_SIZE;	// x
+							pointNormal.y = (*m_pXs)(row, 1) + min_pt.y() + HALF_CELL_SIZE;	// y
+							pointNormal.z = (*m_pXs)(row, 2) + min_pt.z() + HALF_CELL_SIZE;	// z
+							pointNormal.normal_x = (*pMean)(row);				// mean
+							pointNormal.normal_y = (*pVariance)(row, row);	// var
+							pPointNormalCloud->push_back(pointNormal);
 
 							// min, max
 							minMean	= min<float>(minMean,	(*pMean)(row));
@@ -939,8 +937,9 @@ public:
 
 		// save
 		const bool fBinary = true;
-		savePointCloud<pcl::PointXYZI>(pPointXYZICloud, strFilePath, fBinary);
+		savePointCloud<pcl::PointNormal>	(pPointNormalCloud,	strFilePathWithoutExtension + ".pcd", fBinary);
 	}
+
 
 	/** @brief Get the total number of point indices stored in each voxel */
 	size_t totalNumOfPointsDangledInVoxels()
@@ -1319,7 +1318,7 @@ protected:
 											const float occupancyThreshold) const
 	{
 		const size_t row(xyz2row(NUM_CELLS_PER_AXIS_, ix, iy, iz));
-		return PLSC((*pMean)(row), (*pVariance)(row, 0)) < occupancyThreshold;
+		return PLSC::occupancy((*pMean)(row), (*pVariance)(row, 0)) < occupancyThreshold;
 	}
 
 	inline bool isNotIsolatedCell(const VectorPtr &pMean, const MatrixPtr &pVariance, 

@@ -13,6 +13,9 @@
     <ClCompile Include="..\..\main\bunny\main_bunny_gpmap_train.cpp">
       <Filter>main\bunny</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\main\bunny\main_bunny_gpmap_visualization.cpp">
+      <Filter>main\bunny</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\include\bcm\bcm.hpp">

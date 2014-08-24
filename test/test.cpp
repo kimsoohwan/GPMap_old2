@@ -5,6 +5,8 @@
 #include "data/test_test_data.hpp"
 #include "bcm/test_bcm.hpp"
 #include "bcm/test_bcm_serializable.hpp"
+#include "plsc/test_plsc.hpp"
+
 //#include "octree/test_octree_gpmap.hpp"
 
 int main(int argc, char** argv) 

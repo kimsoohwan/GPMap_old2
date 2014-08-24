@@ -87,6 +87,7 @@
   <ItemGroup>
     <ClCompile Include="..\..\main\bunny\main_bunny_gpmap.cpp" />
     <ClCompile Include="..\..\main\bunny\main_bunny_gpmap_train.cpp" />
+    <ClCompile Include="..\..\main\bunny\main_bunny_gpmap_visualization.cpp" />
     <ClCompile Include="..\..\main\bunny\main_bunny_octomap.cpp" />
     <ClCompile Include="..\..\test\octree\test_octree_gpmap.cpp" />
   </ItemGroup>

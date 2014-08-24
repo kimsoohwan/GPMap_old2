@@ -34,7 +34,7 @@ void macro_gpmap(const double		BLOCK_SIZE,
 					  const typename pcl::PointCloud<PointT>::ConstPtr														&pAllPointCloud,	// observations
 					  const float																										gap,					// gap for free points
 					  const int																											maxIter,				// number of iterations for training before update
-					  const std::string																								&strPCDFilePath)	// save file path
+					  const std::string																								&strPCDFilePathWithoutExtension)	// save file path
 {
 	// log file
 	LogFile logFile;
@@ -75,7 +75,7 @@ void macro_gpmap(const double		BLOCK_SIZE,
 
 	// save
 	logFile << "[4] Save" << std::endl << std::endl;
-	gpmap.saveAsPointXYZI(strPCDFilePath);
+	gpmap.saveAsPointCloud(strPCDFilePathWithoutExtension);
 }
 
 template<typename PointT,
@@ -164,8 +164,8 @@ void macro_gpmap(const double		BLOCK_SIZE,
 		// save
 		logFile << "[4] Save" << std::endl << std::endl;
 		std::stringstream ss;
-		ss << strPCDFilePathWithoutExtension << "_upto_" << i << ".pcd";
-		gpmap.saveAsPointXYZI(ss.str());
+		ss << strPCDFilePathWithoutExtension << "_upto_" << i;
+		gpmap.saveAsPointCloud(ss.str());
 	}
 
 	// total time

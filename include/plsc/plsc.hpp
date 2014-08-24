@@ -1,7 +1,11 @@
 #ifndef _PROBABILISTIC_LEAST_SQAURE_CLASSIFICATION_HPP_
 #define _PROBABILISTIC_LEAST_SQAURE_CLASSIFICATION_HPP_
 
-#include <cmath>
+// STL 
+#include <cmath> // sqrt
+
+// GPMap
+//#include "util/data_types.hpp"	// Vector
 
 namespace GPMap {
 	
@@ -29,12 +33,31 @@ inline float normcdf(float x)
 	return 0.5f * (1.f + sign*y);
 }
 
-const float PLSC_mean(0.05f);
-const float PLSC_variance(0.0001f);
-inline float PLSC(const float mean, const float variance)
+class PLSC
 {
-	return normcdf((PLSC_mean - mean) / sqrt(variance + PLSC_variance));
-}
+public:
+	/** @brief Probability of the point being occupied */
+	static inline float occupancy(const float mu, const float sigma)
+	{
+		return normcdf((mean - mu) / sqrt(sigma + var));
+	}
+
+public:
+	static float mean;	// mean of the profit likelihood
+	static float var;		// variance of the profit likelihood
+	//static Vector hyp;
+};
+
+float PLSC::mean = 0.05f;
+float PLSC::var = 0.0001f;
+//Vector PLSC::hyp = Vector(2);
+
+//const float PLSC_mean(0.05f);
+//const float PLSC_variance(0.0001f);
+//inline float PLSC(const float mean, const float variance)
+//{
+//	return normcdf((PLSC_mean - mean) / sqrt(variance + PLSC_variance));
+//}
 
 }
 

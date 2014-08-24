@@ -537,37 +537,65 @@ class Color
 {
 public:
 	Color()
-		: m_min(0.f), m_max(1.f),
-		  m_colorMap(COLOR_MAP_JET)
+		: m_colorMap(COLOR_MAP_JET)
 	{
-		m_step = (m_max - m_min) / static_cast<float>(NUM_COLORS);
+		setMinMax(0.f, 1.f);
 	}
 
 	Color(const float min, const float max)
-		: m_min(min), m_max(max),
-		  m_colorMap(COLOR_MAP_JET)
+		: m_colorMap(COLOR_MAP_JET)
 	{
-		m_step = (m_max - m_min) / static_cast<float>(NUM_COLORS);
+		setMinMax(min, max);
 	}
 
 	void setMinMax(const float min, const float max)
 	{
 		m_min = min;
 		m_max = max;
-		m_step = (m_max - m_min) / static_cast<float>(NUM_COLORS);
+		m_step = (m_max - m_min) / static_cast<float>(NUM_COLORS-1);
 	}
+
+	//inline void rgb(const float value, unsigned char &r, unsigned char &g, unsigned char &b)
+	//{
+	//	// min
+	//	if(value <= m_min)
+	//	{
+	//		r = static_cast<unsigned char>(255.f * m_colorMap[0][0]);
+	//		g = static_cast<unsigned char>(255.f * m_colorMap[0][1]);
+	//		b = static_cast<unsigned char>(255.f * m_colorMap[0][2]);
+	//		return;
+	//	}
+
+	//	// max
+	//	if(value >= m_max)
+	//	{
+	//		r = static_cast<unsigned char>(255.f * m_colorMap[NUM_COLORS-1][0]);
+	//		g = static_cast<unsigned char>(255.f * m_colorMap[NUM_COLORS-1][1]);
+	//		b = static_cast<unsigned char>(255.f * m_colorMap[NUM_COLORS-1][2]);
+	//		return;
+	//	}
+
+	//	// some constants
+	//	const int	floor_idx	= static_cast<int>((value - m_min) / m_step);
+	//	const int	ceil_idx		= floor_idx + 1;
+	//	const float floor_value	= m_min + static_cast<float>(floor_idx)*m_step;
+	//	const float ceil_value	= floor_value + m_step;
+	//	const float to_ceil_factor		= (value - floor_value)/m_step;
+	//	const float to_floor_factor	= (ceil_value - value)/m_step;
+
+	//	// linear interpolation
+	//	r = static_cast<unsigned char>(255.f * (to_floor_factor * m_colorMap[floor_idx][0] + to_ceil_factor * m_colorMap[ceil_idx][0]));
+	//	g = static_cast<unsigned char>(255.f * (to_floor_factor * m_colorMap[floor_idx][1] + to_ceil_factor * m_colorMap[ceil_idx][1]));
+	//	b = static_cast<unsigned char>(255.f * (to_floor_factor * m_colorMap[floor_idx][2] + to_ceil_factor * m_colorMap[ceil_idx][2]));
+	//}
 
 	inline void rgb(const float value, unsigned char &r, unsigned char &g, unsigned char &b)
 	{
-		int i = index(value);
+		const int i = index(value);
 		r = static_cast<unsigned char>(255.f * m_colorMap[i][0]);
 		g = static_cast<unsigned char>(255.f * m_colorMap[i][1]);
 		b = static_cast<unsigned char>(255.f * m_colorMap[i][2]);
 	}
-
-	//inline void rgb(float &r, float &g, float &b)
-	//{
-	//}
 
 protected:
 	/** @brief	Linear interoplation of the RGB color

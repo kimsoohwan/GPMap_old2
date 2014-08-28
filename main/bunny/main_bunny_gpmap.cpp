@@ -1,282 +1,596 @@
 #if 1
 // Eigen
 #include "serialization/eigen_serialization.hpp" // Eigen
-//#define EIGEN_NO_DEBUG		// to speed up
-//#define EIGEN_USE_MKL_ALL	// to use Intel Math Kernel Library
-//#include <Eigen/Core>
+// includes followings inside of it
+//		- #define EIGEN_NO_DEBUG		// to speed up
+//		- #define EIGEN_USE_MKL_ALL	// to use Intel Math Kernel Library
+//		- #include <Eigen/Core>
 
 // GPMap
-#include "io/io.hpp"								// loadPointClouds, savePointClouds, loadSensorPositionList
+#include "io/io.hpp"								// loadPointCloud, savePointCloud, loadSensorPositionList
 #include "visualization/cloud_viewer.hpp"	// show
 #include "features/surface_normal.hpp"		// estimateSurfaceNormals
-#include "../macro_gpmap.hpp"					// macro_gpmap
-#include "octomap/octomap.hpp"				// Octomap
-
+#include "octree/macro_gpmap.hpp"			// macro_gpmap
 using namespace GPMap;
-
-typedef OctreeGPMap<pcl::PointNormal, GP::MeanZeroDerObs, GP::CovSEisoDerObs, GP::LikGaussDerObs, GP::InfExactDerObs> MyOctreeGPMapT;
 
 int main(int argc, char** argv)
 {
-	// setting
+	// [0] setting - directory
+	const std::string strInputDataFolder			("../../data/bunny/input/");
+	const std::string strIntermediateDataFolder	("../../data/bunny/intermediate/");
+	const std::string strGPMapDataFolder			("../../data/bunny/output/gpmap/");
+	const std::string strOutputDataFolder			("../../data/bunny/output/gpmap/meta_data/");
+	const std::string strOutputLogFolder			(strOutputDataFolder + "log/");
+	create_directory(strGPMapDataFolder);
+	create_directory(strOutputDataFolder);
+	create_directory(strOutputLogFolder);
+
+	// [0] setting - observations
 	const size_t NUM_OBSERVATIONS = 4; 
-	const std::string strInputDataFolder ("../../data/input/bunny/");
-	const std::string strOutputDataFolder("../../data/output/bunny/");
 	const std::string strObsFileNames_[]	= {"bun000", "bun090", "bun180", "bun270"};
-	const std::string strFileNameAll		=  "bunny";
+	const std::string strFileNameAll			=  "bunny_all";
 	StringList strObsFileNames(strObsFileNames_, strObsFileNames_ + NUM_OBSERVATIONS); 
 
 	// log file
-	std::string strLogFilePath = strOutputDataFolder + "gpmap.log";
+	std::string strLogFilePath = strOutputLogFolder + "gpmap.log";
 	LogFile logFile;
 	logFile.open(strLogFilePath);
 
-	// [1] load/save hit points
-	//PointXYZCloudPtrList hitPointCloudPtrList;
-	//loadPointClouds<pcl::PointXYZ>(hitPointCloudPtrList, strObsFileNames, strInputDataFolder, ".ply");			// original ply files which are transformed in global coordinates
-	//savePointClouds<pcl::PointXYZ>(hitPointCloudPtrList, strObsFileNames, strInputDataFolder, ".pcd");		// original pcd files which are transformed in global coordinates
-	//loadPointClouds<pcl::PointXYZ>(hitPointCloudPtrList, strObsFileNames, strInputDataFolder, ".pcd");		// original pcd files which are transformed in global coordinates
-	//show<pcl::PointXYZ>("Hit Points", hitPointCloudPtrList);
+	bool fDataPreprocessing;
+	logFile << "[Data Preprocessing] - Do you wish to run? (0/1)";
+	std::cin >> fDataPreprocessing;
+	logFile << fDataPreprocessing << std::endl;
 
-	//PointXYZCloudPtr pAllHitPointCloud(new PointXYZCloud());
-	//for(size_t i = 0; i < hitPointCloudPtrList.size(); i++)	(*pAllHitPointCloud) += (*(hitPointCloudPtrList[i]));
-	//savePointCloud<pcl::PointXYZ>(pAllHitPointCloud, strFileNameAll, strInputDataFolder, ".pcd");		// original pcd files which are transformed in global coordinates
-	//loadPointCloud<pcl::PointXYZ>(pAllHitPointCloud, strFileNameAll, strInputDataFolder, ".pcd");		// original pcd files which are transformed in global coordinates
-	//show<pcl::PointXYZ>("All Hit Points", pAllHitPointCloud);
+	if(fDataPreprocessing)
+	{
+		// [1] load/save hit points
+		PointXYZCloudPtrList hitPointCloudPtrList;
+		loadPointCloud<pcl::PointXYZ>(hitPointCloudPtrList, strObsFileNames, strInputDataFolder, ".ply");				// original ply files which are transformed in global coordinates
+		savePointCloud<pcl::PointXYZ>(hitPointCloudPtrList, strObsFileNames, strIntermediateDataFolder, ".pcd");		// original pcd files which are transformed in global coordinates
+		loadPointCloud<pcl::PointXYZ>(hitPointCloudPtrList, strObsFileNames, strIntermediateDataFolder, ".pcd");		// original pcd files which are transformed in global coordinates
+		show<pcl::PointXYZ>("Hit Points", hitPointCloudPtrList);
 
-	// [2] load sensor positions
-	//PointXYZVList sensorPositionList;
-	//loadSensorPositionList(sensorPositionList, strObsFileNames, strInputDataFolder, "_camera_position.txt");
-	//assert(NUM_OBSERVATIONS == hitPointCloudPtrList.size() && NUM_OBSERVATIONS == sensorPositionList.size());
+		PointXYZCloudPtr pAllHitPointCloud(new PointXYZCloud());
+		for(size_t i = 0; i < hitPointCloudPtrList.size(); i++)	(*pAllHitPointCloud) += (*(hitPointCloudPtrList[i]));
+		savePointCloud<pcl::PointXYZ>(pAllHitPointCloud, strFileNameAll, strIntermediateDataFolder, ".pcd");		// original pcd files which are transformed in global coordinates
+		loadPointCloud<pcl::PointXYZ>(pAllHitPointCloud, strFileNameAll, strIntermediateDataFolder, ".pcd");		// original pcd files which are transformed in global coordinates
+		show<pcl::PointXYZ>("All Hit Points", pAllHitPointCloud);
 
-	// [4] load/save surface normals
-	PointNormalCloudPtrList pointNormalCloudList;
-	////estimateSurfaceNormals<ByNearestNeighbors>(hitPointCloudPtrList, sensorPositionList, false, 0.01, pointNormalCloudList);
-	//estimateSurfaceNormals<ByMovingLeastSquares>(hitPointCloudPtrList, sensorPositionList, false, 0.01, pointNormalCloudList);
-	//savePointClouds<pcl::PointNormal>(pointNormalCloudList, strObsFileNames, strInputDataFolder, "_normals.pcd");
-	loadPointClouds<pcl::PointNormal>(pointNormalCloudList, strObsFileNames, strInputDataFolder, "_normals.pcd");
-	//show<pcl::PointNormal>("Surface Normals", pointNormalCloudList, 0.005, 0.001);
+		// [2] load sensor positions
+		PointXYZVList sensorPositionList;
+		loadSensorPositionList(sensorPositionList, strObsFileNames, strInputDataFolder, "_camera_position.txt");
+		assert(NUM_OBSERVATIONS == hitPointCloudPtrList.size() && NUM_OBSERVATIONS == sensorPositionList.size());
 
-	PointNormalCloudPtr pAllPointNormalCloud(new PointNormalCloud());
-	//for(size_t i = 0; i < pointNormalCloudList.size(); i++)	(*pAllPointNormalCloud) += (*(pointNormalCloudList[i]));
-	//savePointCloud<pcl::PointNormal>(pAllPointNormalCloud, strFileNameAll, strInputDataFolder, "_normals.pcd");
-	loadPointCloud<pcl::PointNormal>(pAllPointNormalCloud, strFileNameAll, strInputDataFolder, "_normals.pcd");
-	//show<pcl::PointNormal>("All Surface Normals", pAllPointNormalCloud, 0.005, 0.001);
+		// [3] load/save function observations
+		PointNormalCloudPtrList funcObsCloudPtrList;
+		unitRayBackVectors(hitPointCloudPtrList, sensorPositionList, funcObsCloudPtrList);
+		savePointCloud<pcl::PointNormal>(funcObsCloudPtrList, strObsFileNames, strIntermediateDataFolder, "_func_obs.pcd");
+		loadPointCloud<pcl::PointNormal>(funcObsCloudPtrList, strObsFileNames, strIntermediateDataFolder, "_func_obs.pcd");
+		show<pcl::PointNormal>("Unit Ray Back Vectors", funcObsCloudPtrList, 0.005, 0.001);
 
-	// [5] GPMap - setting
-	const double	BLOCK_SIZE						= 0.003;		// 0.01
-	const size_t	NUM_CELLS_PER_AXIS			= 3;			// 10
-	const bool		POINT_DUPLICATION				= false;
+		PointNormalCloudPtr pAllFuncObs(new PointNormalCloud());
+		for(size_t i = 0; i < funcObsCloudPtrList.size(); i++)	*pAllFuncObs += *funcObsCloudPtrList[i];
+		savePointCloud<pcl::PointNormal>(pAllFuncObs, strFileNameAll, strIntermediateDataFolder, "_func_obs.pcd");
+		loadPointCloud<pcl::PointNormal>(pAllFuncObs, strFileNameAll, strIntermediateDataFolder, "_func_obs.pcd");
+		show<pcl::PointNormal>("All Unit Ray Back Vectors", pAllFuncObs, 0.005, 0.001);
+
+		// [4] load/save derivative observations
+		PointNormalCloudPtrList derObsCloudPtrList;
+		//estimateSurfaceNormals<ByNearestNeighbors>(hitPointCloudPtrList, sensorPositionList, false, 0.01, derObsCloudPtrList);
+		estimateSurfaceNormals<ByMovingLeastSquares>(hitPointCloudPtrList, sensorPositionList, false, 0.01, derObsCloudPtrList);
+		savePointCloud<pcl::PointNormal>(derObsCloudPtrList, strObsFileNames, strIntermediateDataFolder, "_der_obs.pcd");
+		loadPointCloud<pcl::PointNormal>(derObsCloudPtrList, strObsFileNames, strIntermediateDataFolder, "_der_obs.pcd");
+		show<pcl::PointNormal>("Surface Normals", derObsCloudPtrList, 0.005, 0.001);
+
+		PointNormalCloudPtr pAllDerObs(new PointNormalCloud());
+		for(size_t i = 0; i < derObsCloudPtrList.size(); i++)	(*pAllDerObs) += (*(derObsCloudPtrList[i]));
+		savePointCloud<pcl::PointNormal>(pAllDerObs, strFileNameAll, strIntermediateDataFolder, "_der_obs.pcd");
+		loadPointCloud<pcl::PointNormal>(pAllDerObs, strFileNameAll, strIntermediateDataFolder, "_der_obs.pcd");
+		show<pcl::PointNormal>("All Surface Normals", pAllDerObs, 0.005, 0.001);
+
+		// check density
+		typedef pcl::octree::OctreePointCloudDensity<pcl::PointNormal> PointNormalOctree;
+		PointNormalOctree octree(0.03f);
+		octree.setInputCloud(pAllDerObs);
+		octree.addPointsFromInputCloud();
+		PointNormalOctree::LeafNodeIterator iter(octree);
+		size_t nLeafNodes(0), nPoint;
+		size_t minNumPointsInLeafNode	= std::numeric_limits<size_t>::max();
+		size_t maxNumPointsInLeafNode	= std::numeric_limits<size_t>::min();
+		while(*++iter)
+		{
+			// leaf node counter
+			nLeafNodes++;
+
+			// leaf node
+			PointNormalOctree::LeafNode *pLeafNode = static_cast<PointNormalOctree::LeafNode *>(iter.getCurrentOctreeNode());
+			logFile << nLeafNodes << ": " << pLeafNode->getPointCounter() << std::endl;
+
+			// min, max
+			minNumPointsInLeafNode	= std::min<size_t>(minNumPointsInLeafNode, pLeafNode->getPointCounter());
+			maxNumPointsInLeafNode	= std::max<size_t>(maxNumPointsInLeafNode, pLeafNode->getPointCounter());
+		}
+
+		// [5] load/save all observations
+		PointNormalCloudPtrList allObsCloudPtrList;
+		combinePointCloud<pcl::PointNormal>(funcObsCloudPtrList, derObsCloudPtrList, allObsCloudPtrList);
+		savePointCloud<pcl::PointNormal>(allObsCloudPtrList, strObsFileNames, strIntermediateDataFolder, "_all_obs.pcd");
+		loadPointCloud<pcl::PointNormal>(allObsCloudPtrList, strObsFileNames, strIntermediateDataFolder, "_all_obs.pcd");
+		show<pcl::PointNormal>("All Observation List", allObsCloudPtrList, 0.005, 0.001);
+
+		PointNormalCloudPtr pAllObs(new PointNormalCloud());
+		*pAllObs += *pAllFuncObs;
+		*pAllObs += *pAllDerObs;
+		savePointCloud<pcl::PointNormal>(pAllObs, strFileNameAll, strIntermediateDataFolder, "_all_obs.pcd");
+		loadPointCloud<pcl::PointNormal>(pAllObs, strFileNameAll, strIntermediateDataFolder, "_all_obs.pcd");
+		show<pcl::PointNormal>("All Observations", pAllDerObs, 0.005, 0.001);
+	}
+
+	// combinations
+	// ---------------------------------------------------------------------
+	// |         Observations                        |       Process       |
+	// |===================================================================|
+	// |   (FuncObs)  |    (DerObs)     |  (AllObs)  |       | Incremental |
+	// | hit points,  |   hit points,   |     all    | Batch |-------------|
+	// | empty points | surface normals |            |       | BCM  | iBCM |
+	// ---------------------------------------------------------------------
+
+	// [6] GPMap - setting
+	// constants
+	const double	BLOCK_SIZE						= 0.003;		//
+	const size_t	NUM_CELLS_PER_AXIS			= 3;			// CELL_SIZE = 0.001, NUM_CELLS_PER_BLOCK = 27
+	//const double	BLOCK_SIZE						= 0.1;		//
+	//const size_t	NUM_CELLS_PER_AXIS			= 100;		// CELL_SIZE = 0.001, NUM_CELLS_PER_BLOCK = 1,000,000 wow!!!
+	//const double	BLOCK_SIZE						= 0.01;		// too big = too many training points
+	//const size_t	NUM_CELLS_PER_AXIS			= 10;			// CELL_SIZE = 0.001, NUM_CELLS_PER_BLOCK = 1,000
+	//const double	BLOCK_SIZE						= 0.027;		// too big = too many training points
+	//const size_t	NUM_CELLS_PER_AXIS			= 27;			// CELL_SIZE = 0.001, NUM_CELLS_PER_BLOCK = 19,683
+	//const double	BLOCK_SIZE						= 0.03;		//
+	//const size_t	NUM_CELLS_PER_AXIS			= 30;			// CELL_SIZE = 0.001, NUM_CELLS_PER_BLOCK = 27,000
 	const size_t	MIN_NUM_POINTS_TO_PREDICT	= 3;
-	const bool		NO_DUPLICATED_POINTS			= false;
-	const bool		INDEPENDENT_BCM				= true;
-	const bool		BCM								= false;
 	const float		GAP								= 0.001f;
-	const float		NO_GAP							= 0.f;
+	const bool		FLAG_BCM							= false;
+	const bool		FLAG_INDEPENDENT_BCM			= true;
 	const int		maxIterBeforeUpdate			= 0;			// 100
 	std::string		strFileName;
+	typedef GP::InfExactDerObs<float, GP::MeanZeroDerObs, GP::CovSparseMaternisoDerObs, GP::LikGaussDerObs>::Hyp Hyp;
+	float sparse_ell, matern_ell, sigma_f2, sigma_n, sigma_nd;
+	int		maxIter;				// 100
+	size_t	numRandomBlocks;	// 100, <=0 for all
 
-	// hyperparameters
-	//const float ell(0.1f), sigma_f(1.f), sigma_n(0.01f), sigma_nd(0.1f);
-	const float ell			= 0.107467f;		// 0.107363f;
-	const float sigma_f		= 0.99968f;			// 0.99985f;
-	const float sigma_n		= 0.00343017f;		// 0.0034282f;
-	const float sigma_nd		= 0.0985929f;		// 0.0990157f;
-	MyOctreeGPMapT::Hyp logHyp;
-	logHyp.cov(0) = log(ell);
-	logHyp.cov(1) = log(sigma_f);
-	logHyp.lik(0) = log(sigma_n);
-	logHyp.lik(1) = log(sigma_nd);
+	// [7] GPMap - Function Observations
+	strFileName = "gpmap_function_observations";
+	logFile.open(strOutputLogFolder + strFileName + ".log");
+	bool fRunFuncObs = true;
+	//logFile << "[Function Observations] - Do you wish to run? (0/1)";
+	//std::cin >> fRunFuncObs;
+	//logFile << fRunFuncObs << std::endl;
 
-	// [5-0] traininig
-	//strFileName = "gpmap_meanZero_covSEiso_training";
-	//logFile.open(strOutputDataFolder + strFileName + ".log");
-	//macro_gpmap_training<pcl::PointNormal, 
-	//							GP::MeanZeroDerObs, GP::CovSEisoDerObs, GP::LikGaussDerObs, 
-	//							GP::InfExactDerObs>(BLOCK_SIZE,						// block size
-	//													  NUM_CELLS_PER_AXIS,			// number of cells per each axie
-	//													  BCM,								// independent BCM
-	//													  NO_DUPLICATED_POINTS,			// no duplicated points
-	//													  MIN_NUM_POINTS_TO_PREDICT,	// min number of points to predict
-	//													  logHyp,							// hyperparameters
-	//													  pAllPointNormalCloud,			// observations
-	//													  NO_GAP);							// gap for free points
-
-	// [5-1] GPMap - batch - BCM - derivative obs.
-	strFileName = "gpmap_meanZero_covSEiso_batch_BCM_der";
-	logFile.open(strOutputDataFolder + strFileName + ".log");
-	macro_gpmap<pcl::PointNormal, 
-					GP::MeanZeroDerObs, GP::CovSEisoDerObs, GP::LikGaussDerObs, 
-					GP::InfExactDerObs>(BLOCK_SIZE,						// block size
-											  NUM_CELLS_PER_AXIS,			// number of cells per each axie
-											  BCM,								// independent BCM
-											  NO_DUPLICATED_POINTS,			// no duplicated points
-											  MIN_NUM_POINTS_TO_PREDICT,	// min number of points to predict
-											  logHyp,							// hyperparameters
-											  pAllPointNormalCloud,			// observations
-											  NO_GAP,							// gap for free points
-											  maxIterBeforeUpdate,			// number of iterations for training before update
-											  strOutputDataFolder + strFileName);	// save file path
-
-	// [5-2] GPMap - batch - BCM - function obs.
-	strFileName = "gpmap_meanZero_covSEiso_batch_BCM_func";
-	logFile.open(strOutputDataFolder + strFileName + ".log");
-	macro_gpmap<pcl::PointNormal, 
-					GP::MeanZeroDerObs, GP::CovSEisoDerObs, GP::LikGaussDerObs, 
-					GP::InfExactDerObs>(BLOCK_SIZE,						// block size
-											  NUM_CELLS_PER_AXIS,			// number of cells per each axie
-											  BCM,								// independent BCM
-											  NO_DUPLICATED_POINTS,			// no duplicated points
-											  MIN_NUM_POINTS_TO_PREDICT,	// min number of points to predict
-											  logHyp,							// hyperparameters
-											  pAllPointNormalCloud,			// observations
-											  GAP,								// gap for free points
-											  maxIterBeforeUpdate,			// number of iterations for training before update
-											  strOutputDataFolder + strFileName);	// save file path
-
-	// [5-3] GPMap - batch - independent BCM - derivative obs.
-	strFileName = "gpmap_meanZero_covSEiso_batch_iBCM_der";
-	logFile.open(strOutputDataFolder + strFileName + ".log");
-	macro_gpmap<pcl::PointNormal, 
-					GP::MeanZeroDerObs, GP::CovSEisoDerObs, GP::LikGaussDerObs, 
-					GP::InfExactDerObs>(BLOCK_SIZE,						// block size
-											  NUM_CELLS_PER_AXIS,			// number of cells per each axie
-											  INDEPENDENT_BCM,				// independent BCM
-											  NO_DUPLICATED_POINTS,			// no duplicated points
-											  MIN_NUM_POINTS_TO_PREDICT,	// min number of points to predict
-											  logHyp,							// hyperparameters
-											  pAllPointNormalCloud,			// observations
-											  NO_GAP,							// gap for free points
-											  maxIterBeforeUpdate,			// number of iterations for training before update
-											  strOutputDataFolder + strFileName);	// save file path
-
-	// [5-4] GPMap - batch - independent BCM - function obs.
-	strFileName = "gpmap_meanZero_covSEiso_batch_iBCM_func";
-	logFile.open(strOutputDataFolder + strFileName + ".log");
-	macro_gpmap<pcl::PointNormal, 
-					GP::MeanZeroDerObs, GP::CovSEisoDerObs, GP::LikGaussDerObs, 
-					GP::InfExactDerObs>(BLOCK_SIZE,						// block size
-											  NUM_CELLS_PER_AXIS,			// number of cells per each axie
-											  INDEPENDENT_BCM,				// independent BCM
-											  NO_DUPLICATED_POINTS,			// no duplicated points
-											  MIN_NUM_POINTS_TO_PREDICT,	// min number of points to predict
-											  logHyp,							// hyperparameters
-											  pAllPointNormalCloud,			// observations
-											  GAP,								// gap for free points
-											  maxIterBeforeUpdate,			// number of iterations for training before update
-											  strOutputDataFolder + strFileName);	// save file path
-
-	// [5-5] GPMap - incremental update - BCM - derivative obs.
-	strFileName = "gpmap_meanZero_covSEiso_incremental_BCM_der";
-	logFile.open(strOutputDataFolder + strFileName + ".log");
-	macro_gpmap<pcl::PointNormal, 
-					GP::MeanZeroDerObs, GP::CovSEisoDerObs, GP::LikGaussDerObs, 
-					GP::InfExactDerObs>(BLOCK_SIZE,						// block size
-											  NUM_CELLS_PER_AXIS,			// number of cells per each axie
-											  BCM,								// independent BCM
-											  NO_DUPLICATED_POINTS,			// no duplicated points
-											  MIN_NUM_POINTS_TO_PREDICT,	// min number of points to predict
-											  logHyp,							// hyperparameters
-											  pointNormalCloudList,			// observations
-											  NO_GAP,							// gap for free points
-											  maxIterBeforeUpdate,			// number of iterations for training before update
-											  strOutputDataFolder + strFileName);	// save file path
-
-
-	// [5-6] GPMap - incremental update - BCM - function obs.
-	strFileName = "gpmap_meanZero_covSEiso_incremental_BCM_func";
-	logFile.open(strOutputDataFolder + strFileName + ".log");
-	macro_gpmap<pcl::PointNormal, 
-					GP::MeanZeroDerObs, GP::CovSEisoDerObs, GP::LikGaussDerObs, 
-					GP::InfExactDerObs>(BLOCK_SIZE,						// block size
-											  NUM_CELLS_PER_AXIS,			// number of cells per each axie
-											  BCM,								// independent BCM
-											  NO_DUPLICATED_POINTS,			// no duplicated points
-											  MIN_NUM_POINTS_TO_PREDICT,	// min number of points to predict
-											  logHyp,							// hyperparameters
-											  pointNormalCloudList,			// observations
-											  GAP,								// gap for free points
-											  maxIterBeforeUpdate,			// number of iterations for training before update
-											  strOutputDataFolder + strFileName);	// save file path
-
-	// [5-7] GPMap - incremental update - independent BCM - derivative obs.
-	strFileName = "gpmap_meanZero_covSEiso_incremental_iBCM_der";
-	logFile.open(strOutputDataFolder + strFileName + ".log");
-	macro_gpmap<pcl::PointNormal, 
-					GP::MeanZeroDerObs, GP::CovSEisoDerObs, GP::LikGaussDerObs, 
-					GP::InfExactDerObs>(BLOCK_SIZE,						// block size
-											  NUM_CELLS_PER_AXIS,			// number of cells per each axie
-											  INDEPENDENT_BCM,				// independent BCM
-											  NO_DUPLICATED_POINTS,			// no duplicated points
-											  MIN_NUM_POINTS_TO_PREDICT,	// min number of points to predict
-											  logHyp,							// hyperparameters
-											  pointNormalCloudList,			// observations
-											  NO_GAP,							// gap for free points
-											  maxIterBeforeUpdate,			// number of iterations for training before update
-											  strOutputDataFolder + strFileName);	// save file path
-
-
-
-	// [5-8] GPMap - incremental update - independent BCM - function obs.
-	strFileName = "gpmap_meanZero_covSEiso_incremental_iBCM_func";
-	logFile.open(strOutputDataFolder + strFileName + ".log");
-	macro_gpmap<pcl::PointNormal, 
-					GP::MeanZeroDerObs, GP::CovSEisoDerObs, GP::LikGaussDerObs, 
-					GP::InfExactDerObs>(BLOCK_SIZE,						// block size
-											  NUM_CELLS_PER_AXIS,			// number of cells per each axie
-											  INDEPENDENT_BCM,				// independent BCM
-											  NO_DUPLICATED_POINTS,			// no duplicated points
-											  MIN_NUM_POINTS_TO_PREDICT,	// min number of points to predict
-											  logHyp,							// hyperparameters
-											  pointNormalCloudList,			// observations
-											  GAP,								// gap for free points
-											  maxIterBeforeUpdate,			// number of iterations for training before update
-											  strOutputDataFolder + strFileName);	// save file path
-
-/*
-	// [6] Octomap for GPMap - setting
-	const double	RESOLUTION = 0.001;
-	pcl::PointCloud<pcl::PointXYZI>::Ptr pPointXYZICloud;
-	std::string strFileName;
-
-	// [6-1] GPMap - batch - BCM - derivative obs.
-	// Mean min: -0.0798497, max: 0.474393
-	// Var  min: 9.99999e-007, max: 0.00999929
-	strFileName = "gpmap_meanZero_covSEiso_batch_BCM_der";
-	loadPointCloud<pcl::PointXYZI>(pPointXYZICloud, strOutputDataFolder + strFileName + ".pcd");
-	Octomap<NO_COLOR> octomap1(RESOLUTION, *pPointXYZICloud, 0, 1);
-	octomap1.save(strOutputDataFolder + strFileName);
-	//Octomap<COLOR>		octomap1c(RESOLUTION, *pPointXYZICloud, 0, 1, 9.99999e-007, 0.00999929); 
-	Octomap<COLOR>		octomap1c_default(RESOLUTION, *pPointXYZICloud, 0, 1); 
-	octomap1c_default.save(strOutputDataFolder + strFileName + "_default_color");
-	while(true)
+	if(fRunFuncObs)
 	{
-		float minVar; std::cout << "min var: "; std::cin >> minVar;
-		float maxVar; std::cout << "max var: "; std::cin >> maxVar;
-		if(minVar == maxVar) break;
-		Octomap<COLOR>		octomap1c(RESOLUTION, *pPointXYZICloud, 0, 1, minVar, maxVar); 
-		octomap1c.save(strOutputDataFolder + strFileName + "_color");
-	}
-*/
-	// [6] evaluation
-	//logFile << "============= Evaluation =============" << std::endl;
-	//unsigned int num_points, num_voxels_correct, num_voxels_wrong, num_voxels_unknown;
-	//octomap.evaluate<pcl::PointXYZ, pcl::PointXYZ>(hitPointCloudPtrList, sensorPositionList,
-	//															  num_points, num_voxels_correct, num_voxels_wrong, num_voxels_unknown);
-	//logFile << "Number of hit points: " << num_points << std::endl;
-	//logFile << "Number of correct voxels: " << num_voxels_correct << std::endl;
-	//logFile << "Number of wrong voxels: " << num_voxels_wrong << std::endl;
-	//logFile << "Number of unknown voxels: " << num_voxels_unknown << std::endl;
-	//logFile << "Correct rate (correct/(correct+wrong)): " << static_cast<float>(num_voxels_correct)/static_cast<float>(num_voxels_correct+num_voxels_wrong) << std::endl;
+		// [7-0] GPMap - Function Observations - Loading
+		PointNormalCloudPtrList funcObsCloudPtrList;
+		loadPointCloud<pcl::PointNormal>(funcObsCloudPtrList, strObsFileNames, strIntermediateDataFolder, "_func_obs.pcd");
 
-	//// save
-	//while(true)
-	//{
-	//	float occupancyThreshold; std::cout << "Occupancy Threshold: "; std::cin >> occupancyThreshold; std::cout << occupancyThreshold << std::endl;
-	//	std::stringstream ss;
-	//	ss << strOutputDataFolder << "gpmap_bunny_upto_" << i << "_" << occupancyThreshold;
-	//	gpmap.saveAsOctomap(ss.str(), occupancyThreshold, false);
-	//}
+		PointNormalCloudPtr pAllFuncObs(new PointNormalCloud());
+		loadPointCloud<pcl::PointNormal>(pAllFuncObs, strFileNameAll, strIntermediateDataFolder, "_func_obs.pcd");
+
+		// [7-1] GPMap - Function Observations - Training
+		bool fRunTraining = false;
+		//logFile << "Do you wish to train hyperparameters? (0/1)";
+		//std::cin >> fRunTraining;
+		//logFile << fRunTraining << std::endl;
+
+		// max iterations and number of random blocks
+		if(fRunTraining)
+		{
+			logFile << "Learn Function Observations - Max Iterations? (0 for no training): ";
+			std::cin >> maxIter;	logFile << maxIter << std::endl;;
+			logFile << "Train - Num Random Blocks? (0 for all) ";	
+			std::cin >> numRandomBlocks; logFile << numRandomBlocks << std::endl;;
+		}
+
+		// hyperparameters
+		bool fUsePredefinedHyperparameters = true;
+		//logFile << "Use Predefined Hyperparameters? (0/1) ";
+		//std::cin >> fUsePredefinedHyperparameters;
+		//logFile << fUsePredefinedHyperparameters << std::endl;;
+		if(fUsePredefinedHyperparameters)
+		{
+			// outside negative distance
+			sparse_ell	= 0.141505f;		// 0.107363f;
+			matern_ell	= 0.131221f;		// 0.107363f;
+			sigma_f2		= 0.245837f;		// 0.99985f;
+			sigma_n		= 0.000271421f;	// 0.0034282f;
+			sigma_nd		= 1.00000f;			// 0.0990157f; // will not be used here
+
+			// outside positive distance
+			sparse_ell	= 0.121951f;	
+			matern_ell	= 0.103329f;	
+			sigma_f2		= 0.409635f;	
+			sigma_n		= 0.000299012f;	
+			sigma_nd		= 1.00122f;			// will not be used here
+		}
+		else
+		{
+			std::cout << "sparse_ell: ";			std::cin >> sparse_ell;		// 0.1f
+			std::cout << "matern_ell: ";			std::cin >> matern_ell;		// 0.1f
+			std::cout << "sigma_f2: ";				std::cin >> sigma_f2;			// 1.f
+			std::cout << "sigma_n: ";				std::cin >> sigma_n;			// 0.1f
+			std::cout << "sigma_nd: ";				std::cin >> sigma_nd;		// 0.1f
+		}
+		logFile << "sparse_ell: "	<< sparse_ell	<< std::endl;
+		logFile << "matern_ell: "	<< matern_ell	<< std::endl;
+		logFile << "sigma_f2: "		<< sigma_f2		<< std::endl;
+		logFile << "sigma_n: "		<< sigma_n		<< std::endl;
+		logFile << "sigma_nd: "		<< sigma_nd		<< std::endl;
+
+		// set hyperparameters
+		Hyp logHyp;
+		logHyp.cov(0) = log(sparse_ell);
+		logHyp.cov(1) = log(matern_ell);
+		logHyp.cov(2) = log(sigma_f2);
+		logHyp.lik(0) = log(sigma_n);
+		logHyp.lik(0) = log(sigma_nd);
+
+		// training
+		if(fRunTraining && maxIter > 0)
+		{
+			strFileName = "gpmap_function_observations_training";
+			logFile.open(strOutputLogFolder + strFileName + ".log");
+			gpmap_training<GP::MeanZeroDerObs, 
+								GP::CovSparseMaternisoDerObs, 
+								GP::LikGaussDerObs, 
+								GP::InfExactDerObs>(BLOCK_SIZE,						// block size
+														  NUM_CELLS_PER_AXIS,			// number of cells per each axie
+														  MIN_NUM_POINTS_TO_PREDICT,	// min number of points to predict
+														  logHyp,							// hyperparameters
+														  pAllFuncObs,						// observations
+														  GAP,								// gap
+														  maxIter,							// number of iterations for training before update
+														  numRandomBlocks);				// number of randomly selected blocks
+		}
+
+		// [7-2] GPMap - Function Observations - Prediction
+		bool fRunPrediction = true;
+		//logFile << "Do you wish to build GPMaps? (0/1)";
+		//std::cin >> fRunPrediction;
+		//logFile << fRunPrediction << std::endl;
+
+		if(fRunPrediction)
+		{
+			// [7-2-1] GPMap - Function Observations - Batch
+			strFileName = "gpmap_function_observations_batch";
+			logFile.open(strOutputLogFolder + strFileName + ".log");
+			gpmap_batch<GP::MeanZeroDerObs, 
+							GP::CovSparseMaternisoDerObs, 
+							GP::LikGaussDerObs, 
+							GP::InfExactDerObs>(BLOCK_SIZE,						// block size
+													  NUM_CELLS_PER_AXIS,			// number of cells per each axie
+													  MIN_NUM_POINTS_TO_PREDICT,	// min number of points to predict
+													  logHyp,							// hyperparameters
+													  pAllFuncObs,						// observations
+													  GAP,								// gap
+													  maxIterBeforeUpdate,			// number of iterations for training before update
+													  strOutputDataFolder + strFileName);	// save file path
+
+			// [7-2-2] GPMap - Function Observations - Incremental (iBCM)
+			strFileName = "gpmap_function_observations_iBCM";
+			logFile.open(strOutputLogFolder + strFileName + ".log");
+			gpmap_incremental<GP::MeanZeroDerObs, 
+									GP::CovSparseMaternisoDerObs, 
+									GP::LikGaussDerObs, 
+									GP::InfExactDerObs>(BLOCK_SIZE,						// block size
+															  NUM_CELLS_PER_AXIS,			// number of cells per each axie
+															  MIN_NUM_POINTS_TO_PREDICT,	// min number of points to predict
+															  FLAG_INDEPENDENT_BCM,			// independent BCM or BCM
+															  logHyp,							// hyperparameters
+															  funcObsCloudPtrList,			// observations
+															  GAP,								// gap for free points
+															  maxIterBeforeUpdate,			// number of iterations for training before update
+															  strOutputDataFolder + strFileName);	// save file path
+
+			// [7-2-3] GPMap - Function Observations - Incremental (BCM)
+			strFileName = "gpmap_function_observations_BCM";
+			logFile.open(strOutputLogFolder + strFileName + ".log");
+			gpmap_incremental<GP::MeanZeroDerObs, 
+									GP::CovSparseMaternisoDerObs, 
+									GP::LikGaussDerObs, 
+									GP::InfExactDerObs>(BLOCK_SIZE,						// block size
+															  NUM_CELLS_PER_AXIS,			// number of cells per each axie
+															  MIN_NUM_POINTS_TO_PREDICT,	// min number of points to predict
+															  FLAG_BCM,							// independent BCM or BCM
+															  logHyp,							// hyperparameters
+															  funcObsCloudPtrList,			// observations
+															  GAP,								// gap
+															  maxIterBeforeUpdate,			// number of iterations for training before update
+															  strOutputDataFolder + strFileName);	// save file path
+		}
+	}
+
+	// [8] Derivative Observations
+	strFileName = "gpmap_derivative_observations";
+	logFile.open(strOutputLogFolder + strFileName + ".log");
+	bool fRunDerObs = true;
+	//logFile << "[Derivative Observations] - Do you wish to run? (0/1)";
+	//std::cin >> fRunDerObs;
+	//logFile << fRunDerObs << std::endl;
+
+	if(fRunDerObs)
+	{
+		// [8-0] GPMap - Derivative Observations - Loading
+		PointNormalCloudPtrList derObsCloudPtrList;
+		loadPointCloud<pcl::PointNormal>(derObsCloudPtrList, strObsFileNames, strIntermediateDataFolder, "_der_obs.pcd");
+
+		PointNormalCloudPtr pAllDerObs(new PointNormalCloud());
+		loadPointCloud<pcl::PointNormal>(pAllDerObs, strFileNameAll, strIntermediateDataFolder, "_der_obs.pcd");
+
+		// [8-1] GPMap - Derivative Observations - Traininig
+		bool fRunTraining = false;
+		//logFile << "Do you wish to train hyperparameters? (0/1)";
+		//std::cin >> fRunTraining;
+		//logFile << fRunTraining << std::endl;
+
+		// max iterations and number of random blocks
+		if(fRunTraining)
+		{
+			logFile << "Learn Function Observations - Max Iterations? (0 for no training): ";
+			std::cin >> maxIter;	logFile << maxIter << std::endl;;
+			logFile << "Train - Num Random Blocks? (0 for all) ";	
+			std::cin >> numRandomBlocks; logFile << numRandomBlocks << std::endl;;
+		}
+
+		// hyperparameters
+		bool fUsePredefinedHyperparameters = true;
+		//logFile << "Use Predefined Hyperparameters? (0/1) ";
+		//std::cin >> fUsePredefinedHyperparameters;
+		//logFile << fUsePredefinedHyperparameters << std::endl;;
+		if(fUsePredefinedHyperparameters)
+		{
+			sparse_ell	= 0.0268108f;		// 0.107363f;
+			matern_ell	= 0.0907317f;		// 0.107363f;
+			sigma_f2		= 0.0144318f;		// 0.99985f;
+			sigma_n		= 4.31269e-007f;	// 0.0034282f; will not be used
+			sigma_nd		= 0.017184f;		// 0.0990157f;
+		}
+		else
+		{
+			std::cout << "sparse_ell: ";			std::cin >> sparse_ell;		// 0.1f
+			std::cout << "matern_ell: ";			std::cin >> matern_ell;		// 0.1f
+			std::cout << "sigma_f2: ";				std::cin >> sigma_f2;			// 1.f
+			std::cout << "sigma_n: ";				std::cin >> sigma_n;			// 0.1f
+			std::cout << "sigma_nd: ";				std::cin >> sigma_nd;		// 0.1f
+		}
+		logFile << "sparse_ell: "	<< sparse_ell	<< std::endl;
+		logFile << "matern_ell: "	<< matern_ell	<< std::endl;
+		logFile << "sigma_f2: "		<< sigma_f2		<< std::endl;
+		logFile << "sigma_n: "		<< sigma_n		<< std::endl;
+		logFile << "sigma_nd: "		<< sigma_nd		<< std::endl;
+
+		// set hyperparameters
+		Hyp logHyp;
+		logHyp.cov(0) = log(sparse_ell);
+		logHyp.cov(1) = log(matern_ell);
+		logHyp.cov(2) = log(sigma_f2);
+		logHyp.lik(0) = log(sigma_n);
+		logHyp.lik(1) = log(sigma_nd);
+
+		// training
+		if(fRunTraining && maxIter > 0)
+		{
+			strFileName = "gpmap_derivative_observations_training";
+			logFile.open(strOutputLogFolder + strFileName + ".log");
+			gpmap_training<GP::MeanZeroDerObs, 
+								GP::CovSparseMaternisoDerObs, 
+								GP::LikGaussDerObs, 
+								GP::InfExactDerObs>(BLOCK_SIZE,						// block size
+														  NUM_CELLS_PER_AXIS,			// number of cells per each axie
+														  MIN_NUM_POINTS_TO_PREDICT,	// min number of points to predict
+														  logHyp,							// hyperparameters
+														  pAllDerObs,						// observations
+														  GAP,								// gap
+														  maxIter,							// number of iterations for training before update
+														  numRandomBlocks);				// number of randomly selected blocks
+		}
+
+		// [8-2] GPMap - Derivative Observations - Prediction
+		bool fRunPrediction = true;
+		//logFile << "Do you wish to build GPMaps? (0/1)";
+		//std::cin >> fRunPrediction;
+		//logFile << fRunPrediction << std::endl;
+
+		if(fRunPrediction)
+		{
+			// [8-2-1] GPMap - Derivative Observations - Batch
+			strFileName = "gpmap_derivative_observations_batch";
+			logFile.open(strOutputLogFolder + strFileName + ".log");
+			gpmap_batch<GP::MeanZeroDerObs, 
+							GP::CovSparseMaternisoDerObs, 
+							GP::LikGaussDerObs, 
+							GP::InfExactDerObs>(BLOCK_SIZE,						// block size
+													  NUM_CELLS_PER_AXIS,			// number of cells per each axie
+													  MIN_NUM_POINTS_TO_PREDICT,	// min number of points to predict
+													  logHyp,							// hyperparameters
+													  pAllDerObs,						// observations
+													  GAP,								// gap
+													  maxIterBeforeUpdate,			// number of iterations for training before update
+													  strOutputDataFolder + strFileName);	// save file path
+
+			// [8-2-2] GPMap - Derivative Observations - Incremental (iBCM)
+			strFileName = "gpmap_derivative_observations_iBCM";
+			logFile.open(strOutputLogFolder + strFileName + ".log");
+			gpmap_incremental<GP::MeanZeroDerObs, 
+									GP::CovSparseMaternisoDerObs, 
+									GP::LikGaussDerObs, 
+									GP::InfExactDerObs>(BLOCK_SIZE,						// block size
+															  NUM_CELLS_PER_AXIS,			// number of cells per each axie
+															  MIN_NUM_POINTS_TO_PREDICT,	// min number of points to predict
+															  FLAG_INDEPENDENT_BCM,			// independent BCM or BCM
+															  logHyp,							// hyperparameters
+															  derObsCloudPtrList,			// observations
+															  GAP,								// gap
+															  maxIterBeforeUpdate,			// number of iterations for training before update
+															  strOutputDataFolder + strFileName);	// save file path
+
+			// [8-2-3] GPMap - Derivative Observations - Incremental (BCM)
+			strFileName = "gpmap_derivative_observations_BCM";
+			logFile.open(strOutputLogFolder + strFileName + ".log");
+			gpmap_incremental<GP::MeanZeroDerObs, 
+									GP::CovSparseMaternisoDerObs, 
+									GP::LikGaussDerObs, 
+									GP::InfExactDerObs>(BLOCK_SIZE,						// block size
+															  NUM_CELLS_PER_AXIS,			// number of cells per each axie
+															  MIN_NUM_POINTS_TO_PREDICT,	// min number of points to predict
+															  FLAG_BCM,							// independent BCM or BCM
+															  logHyp,							// hyperparameters
+															  derObsCloudPtrList,			// observations
+															  GAP,								// gap
+															  maxIterBeforeUpdate,			// number of iterations for training before update
+															  strOutputDataFolder + strFileName);	// save file path
+		}
+	}
+
+	// [9] All Observations
+	strFileName = "gpmap_all_observations";
+	logFile.open(strOutputLogFolder + strFileName + ".log");
+	bool fRunAllObs;
+	logFile << "[All Observations] - Do you wish to run? (0/1)";
+	std::cin >> fRunAllObs;
+	logFile << fRunAllObs << std::endl;
+
+	if(fRunAllObs)
+	{
+		// [9-0] GPMap - All Observations - Loading
+		PointNormalCloudPtrList allObsCloudPtrList;
+		loadPointCloud<pcl::PointNormal>(allObsCloudPtrList, strObsFileNames, strIntermediateDataFolder, "_all_obs.pcd");
+
+		PointNormalCloudPtr pAllObs(new PointNormalCloud());
+		loadPointCloud<pcl::PointNormal>(pAllObs, strFileNameAll, strIntermediateDataFolder, "_all_obs.pcd");
+
+		// [9-1] GPMap - All Observations - Traininig
+		bool fRunTraining;
+		logFile << "Do you wish to train hyperparameters? (0/1)";
+		std::cin >> fRunTraining;
+		logFile << fRunTraining << std::endl;
+
+		// max iterations and number of random blocks
+		if(fRunTraining)
+		{
+			logFile << "Learn Function Observations - Max Iterations? (0 for no training): ";
+			std::cin >> maxIter;	logFile << maxIter << std::endl;;
+			logFile << "Train - Num Random Blocks? (0 for all) ";	
+			std::cin >> numRandomBlocks; logFile << numRandomBlocks << std::endl;;
+		}
+
+		// hyperparameters
+		bool fUsePredefinedHyperparameters;
+		logFile << "Use Predefined Hyperparameters? (0/1) ";
+		std::cin >> fUsePredefinedHyperparameters;
+		logFile << fUsePredefinedHyperparameters << std::endl;;
+		if(fUsePredefinedHyperparameters)
+		{
+			sparse_ell	= 0.145733f;		// 0.107363f;
+			matern_ell	= 0.134403f;		// 0.107363f;
+			sigma_f2		= 0.370553f;		// 0.99985f;
+			sigma_n		= 0.0200443f;		// 0.0034282f;
+			sigma_nd		= 0.200443f;		// 0.0990157f;
+		}
+		else
+		{
+			std::cout << "sparse_ell: ";			std::cin >> sparse_ell;		// 0.1f
+			std::cout << "matern_ell: ";			std::cin >> matern_ell;		// 0.1f
+			std::cout << "sigma_f2: ";				std::cin >> sigma_f2;			// 1.f
+			std::cout << "sigma_n: ";				std::cin >> sigma_n;			// 0.1f
+			std::cout << "sigma_nd: ";				std::cin >> sigma_nd;		// 0.1f
+		}
+		logFile << "sparse_ell: "	<< sparse_ell	<< std::endl;
+		logFile << "matern_ell: "	<< matern_ell	<< std::endl;
+		logFile << "sigma_f2: "		<< sigma_f2		<< std::endl;
+		logFile << "sigma_n: "		<< sigma_n		<< std::endl;
+		logFile << "sigma_nd: "		<< sigma_nd		<< std::endl;
+
+		// set hyperparameters
+		Hyp logHyp;
+		logHyp.cov(0) = log(sparse_ell);
+		logHyp.cov(1) = log(matern_ell);
+		logHyp.cov(2) = log(sigma_f2);
+		logHyp.lik(0) = log(sigma_n);
+		logHyp.lik(1) = log(sigma_nd);
+
+		// training
+		if(fRunTraining && maxIter > 0)
+		{
+			strFileName = "gpmap_all_observations_training";
+			logFile.open(strOutputLogFolder + strFileName + ".log");
+			gpmap_training<GP::MeanZeroDerObs, 
+								GP::CovSparseMaternisoDerObs, 
+								GP::LikGaussDerObs, 
+								GP::InfExactDerObs>(BLOCK_SIZE,						// block size
+														  NUM_CELLS_PER_AXIS,			// number of cells per each axie
+														  MIN_NUM_POINTS_TO_PREDICT,	// min number of points to predict
+														  logHyp,							// hyperparameters
+														  pAllObs,							// observations
+														  GAP,								// gap
+														  maxIter,							// number of iterations for training before update
+														  numRandomBlocks);				// number of randomly selected blocks
+		}
+
+		// [9-2] GPMap - All Observations - Prediction
+		bool fRunPrediction;
+		logFile << "Do you wish to build GPMaps? (0/1)";
+		std::cin >> fRunPrediction;
+		logFile << fRunPrediction << std::endl;
+
+		if(fRunPrediction)
+		{
+			// [9-2-1] GPMap - All Observations - Batch
+			strFileName = "gpmap_all_observations_batch";
+			logFile.open(strOutputLogFolder + strFileName + ".log");
+			gpmap_batch<GP::MeanZeroDerObs, 
+							GP::CovSparseMaternisoDerObs, 
+							GP::LikGaussDerObs, 
+							GP::InfExactDerObs>(BLOCK_SIZE,						// block size
+													  NUM_CELLS_PER_AXIS,			// number of cells per each axie
+													  MIN_NUM_POINTS_TO_PREDICT,	// min number of points to predict
+													  logHyp,							// hyperparameters
+													  pAllObs,							// observations
+													  GAP,								// gap for free points
+													  maxIterBeforeUpdate,			// number of iterations for training before update
+													  strOutputDataFolder + strFileName);	// save file path
+
+			// [9-2-2] GPMap - All Observations - Incremental (iBCM)
+			strFileName = "gpmap_all_observations_iBCM";
+			logFile.open(strOutputLogFolder + strFileName + ".log");
+			gpmap_incremental<GP::MeanZeroDerObs, 
+									GP::CovSparseMaternisoDerObs, 
+									GP::LikGaussDerObs, 
+									GP::InfExactDerObs>(BLOCK_SIZE,						// block size
+															  NUM_CELLS_PER_AXIS,			// number of cells per each axie
+															  MIN_NUM_POINTS_TO_PREDICT,	// min number of points to predict
+															  FLAG_INDEPENDENT_BCM,			// independent BCM or BCM
+															  logHyp,							// hyperparameters
+															  allObsCloudPtrList,			// observations
+															  GAP	,								// gap for free points
+															  maxIterBeforeUpdate,			// number of iterations for training before update
+															  strOutputDataFolder + strFileName);	// save file path
+
+			// [9-2-3] GPMap - All Observations - Incremental (BCM)
+			strFileName = "gpmap_all_observations_BCM";
+			logFile.open(strOutputLogFolder + strFileName + ".log");
+			gpmap_incremental<GP::MeanZeroDerObs, 
+									GP::CovSparseMaternisoDerObs, 
+									GP::LikGaussDerObs, 
+									GP::InfExactDerObs>(BLOCK_SIZE,						// block size
+															  NUM_CELLS_PER_AXIS,			// number of cells per each axie
+															  MIN_NUM_POINTS_TO_PREDICT,	// min number of points to predict
+															  FLAG_BCM,							// independent BCM or BCM
+															  logHyp,							// hyperparameters
+															  allObsCloudPtrList,			// observations
+															  GAP,								// gap for free points
+															  maxIterBeforeUpdate,			// number of iterations for training before update
+															  strOutputDataFolder + strFileName);	// save file path
+		}
+	}
 
 	system("pause");
 }

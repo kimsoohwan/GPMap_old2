@@ -53,7 +53,7 @@ isFinite<pcl::PointNormal>(const pcl::PointNormal &pt_n)
 			  pcl_isfinite(pt_n.normal_y) && 
 			  pcl_isfinite(pt_n.normal_z) &&
 			  GPMap::norm(pt_n) > std::numeric_limits<float>::epsilon());
-			  //pt.curvature > 0
+			  //pt_n.curvature > 0
 }
 
 }
@@ -67,6 +67,7 @@ inline bool normalizeNormalVector(NormalT &normal)
 	{
 		// length
 		const float length = norm(normal);
+		assert(std::numeric_limits<float>::epsilon());
 
 		// normalization
 		normal.normal_x /= length;
@@ -248,64 +249,132 @@ smoothAndNormalEstimation(const pcl::PointCloud<pcl::PointXYZ>::ConstPtr	&cloud,
 }
 
 
-class ByNearestNeighbors {};
-class ByMovingLeastSquares {};
+class ByNearestNeighbors		{};
+class ByMovingLeastSquares		{};
 
 template <typename EstimateMethod>
-void estimateSurfaceNormals(const vector<pcl::PointCloud<pcl::PointXYZ>::Ptr>			&pointClouds, 
-									 const PointXYZVList												&sensorPositionList,
+void estimateSurfaceNormals(const std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr>	&pointClouds, 
+									 const PointXYZVList													&sensorPositionList,
 									 const bool																fSearchRadius, // SearchRadius or SearchK
 									 const float															param,			// radius or k
-									 vector<pcl::PointCloud<pcl::PointNormal>::Ptr>				&pointNormalCloudPtrs);
+									 std::vector<pcl::PointCloud<pcl::PointNormal>::Ptr>		&pointNormalCloudPtrList);
 
 template <>
-void estimateSurfaceNormals<ByNearestNeighbors>(const vector<pcl::PointCloud<pcl::PointXYZ>::Ptr>		&pointClouds,
+void estimateSurfaceNormals<ByNearestNeighbors>(const std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr>		&pointClouds,
 																const PointXYZVList												&sensorPositionList,
 																const bool															fSearchNearestK, // SearchRadius or SearchNearestK
 																const float															param,			// radius or k
-																vector<pcl::PointCloud<pcl::PointNormal>::Ptr>			&pointNormalCloudPtrs)
+																std::vector<pcl::PointCloud<pcl::PointNormal>::Ptr>			&pointNormalCloudPtrList)
 {
 	// resize
-	pointNormalCloudPtrs.resize(pointClouds.size());
+	pointNormalCloudPtrList.resize(pointClouds.size());
 
 	// for each point cloud
 	for(size_t i = 0; i < pointClouds.size(); i++)
 	{
 		std::cout << "Estimate surface normals: " << i << " ... ";
-		pointNormalCloudPtrs[i] = estimateSurfaceNormals(pointClouds[i], 
-																	 sensorPositionList[i], 
-																	 fSearchNearestK, 
-																	 param, 
-																	 std::vector<int>());
-		std::cout << pointNormalCloudPtrs[i]->size() << " normals." << std::endl;
+		pointNormalCloudPtrList[i] = estimateSurfaceNormals(pointClouds[i], 
+																		 sensorPositionList[i], 
+																		 fSearchNearestK, 
+																		 param, 
+																		 std::vector<int>());
+		std::cout << pointNormalCloudPtrList[i]->size() << " normals." << std::endl;
 	}
 }
 
 template <>
-void estimateSurfaceNormals<ByMovingLeastSquares>(const vector<pcl::PointCloud<pcl::PointXYZ>::Ptr>		&pointCloudPtrs,
+void estimateSurfaceNormals<ByMovingLeastSquares>(const std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr>	&pointCloudPtrList,
 																  const PointXYZVList												&sensorPositionList,
 																  const bool															fSearchNearestK, // SearchRadius or SearchNearestK
 																  const float															param,			// radius or k
-																  vector<pcl::PointCloud<pcl::PointNormal>::Ptr>			&pointNormalCloudPtrs)
+																  std::vector<pcl::PointCloud<pcl::PointNormal>::Ptr>		&pointNormalCloudPtrList)
 {
 	// resize
-	pointNormalCloudPtrs.resize(pointCloudPtrs.size());
+	pointNormalCloudPtrList.resize(pointCloudPtrList.size());
 
 	// for each point cloud
-	for(size_t i = 0; i < pointCloudPtrs.size(); i++)
+	for(size_t i = 0; i < pointCloudPtrList.size(); i++)
 	{
 		std::cout << "Estimate surface normals: " << i << " ... ";
 
 		// estimate the surface normals
-		pointNormalCloudPtrs[i] = smoothAndNormalEstimation(pointCloudPtrs[i], param);
+		pointNormalCloudPtrList[i] = smoothAndNormalEstimation(pointCloudPtrList[i], param);
 
 		// normalize
-		normalizeNormalVectorCloud<pcl::PointNormal>(pointNormalCloudPtrs[i]);
+		normalizeNormalVectorCloud<pcl::PointNormal>(pointNormalCloudPtrList[i]);
 
 		// flip toward the sensor position
-		flipSurfaceNormals(sensorPositionList[i], *(pointNormalCloudPtrs[i]));
+		flipSurfaceNormals(sensorPositionList[i], *(pointNormalCloudPtrList[i]));
 
-		std::cout << pointNormalCloudPtrs[i]->size() << " normals." << std::endl;
+		std::cout << pointNormalCloudPtrList[i]->size() << " normals." << std::endl;
+	}
+}
+
+
+/** @brief Compute a unit vector from the hit point to the sensor position, P_O */
+template <typename PointT>
+inline void unitBackRayVector(const PointT				&hitPoint, 
+										const pcl::PointXYZ		&sensorPosition,
+										pcl::PointNormal			&P_O)
+{
+	// check finite
+	assert(pcl::isFinite<PointT>(hitPoint) && pcl::isFinite<pcl::PointXYZ>(sensorPosition));
+
+	// hit point
+	P_O.x = hitPoint.x;
+	P_O.y = hitPoint.y;
+	P_O.z = hitPoint.z;
+
+	// vector from a hit point to the origin (sensorPosition)
+	P_O.normal_x = sensorPosition.x - hitPoint.x;
+	P_O.normal_y = sensorPosition.y - hitPoint.y;
+	P_O.normal_z = sensorPosition.z - hitPoint.z;
+	const float length = sqrt(P_O.normal_x*P_O.normal_x + P_O.normal_y*P_O.normal_y + P_O.normal_z*P_O.normal_z);
+
+	// check length
+	assert(length > std::numeric_limits<float>::epsilon());
+
+	// normalize
+	P_O.normal_x /= length;
+	P_O.normal_y /= length;
+	P_O.normal_z /= length;
+
+	// curvature
+	P_O.curvature = -1.f;
+}
+
+/** @brief Compute unit vectors from the hit points to the sensor position, P_O */
+pcl::PointCloud<pcl::PointNormal>::Ptr unitRayBackVectors(const pcl::PointCloud<pcl::PointXYZ>		&pointCloud,
+																			 const pcl::PointXYZ								&sensorPosition)
+{
+	// memory allocation
+	pcl::PointCloud<pcl::PointNormal>::Ptr pPointNormalCloud(new pcl::PointCloud<pcl::PointNormal>());
+	pPointNormalCloud->resize(pointCloud.size());
+
+	// unit vectors
+	for(size_t i = 0; i < pointCloud.points.size(); i++)
+		unitBackRayVector(pointCloud.points[i], sensorPosition, pPointNormalCloud->points[i]);
+
+	return pPointNormalCloud;
+}
+
+/** @brief Compute unit vectors from the hit points to the sensor position, P_O */
+void unitRayBackVectors(const std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr>	&pointCloudPtrList,
+								const PointXYZVList													&sensorPositionList,
+								std::vector<pcl::PointCloud<pcl::PointNormal>::Ptr>		&pointNormalCloudPtrList)
+{
+	// resize
+	pointNormalCloudPtrList.resize(pointCloudPtrList.size());
+
+	// for each point cloud
+	for(size_t i = 0; i < pointCloudPtrList.size(); i++)
+	{
+		std::cout << "Calculate unit ray back vectors: " << i << " ... ";
+
+		// calculate unit ray back vectors
+		pointNormalCloudPtrList[i] = unitRayBackVectors(*pointCloudPtrList[i], sensorPositionList[i]);
+
+		std::cout << pointNormalCloudPtrList[i]->size() << " normals." << std::endl;
 	}
 }
 

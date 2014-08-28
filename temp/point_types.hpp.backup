@@ -1,0 +1,42 @@
+#ifndef _GPMAP_UTILITY_HPP_
+#define _GPMAP_UTILITY_HPP_
+
+
+// PCL
+#include <pcl/point_types.h>
+
+namespace GPMap {
+
+inline pcl::PointXYZ operator +(const pcl::PointXYZ &p1, const pcl::PointXYZ &p2)
+{
+	return pcl::PointXYZ(p1.x + p2.x, p1.y + p2.y, p1.z + p2.z); 
+}
+
+inline pcl::PointXYZ& operator +=(pcl::PointXYZ &p1, const pcl::PointXYZ &p2)
+{
+	p1.x += p2.x;
+	p1.y += p2.y;
+	p1.z += p2.z;
+	return p1; 
+}
+
+inline pcl::PointXYZ& operator *=(pcl::PointXYZ &p, const float factor)
+{
+	p.x *= factor;
+	p.y *= factor;
+	p.z *= factor;
+	return p; 
+}
+
+inline pcl::PointXYZ& operator /=(pcl::PointXYZ &p, const float factor)
+{
+	p.x /= factor;
+	p.y /= factor;
+	p.z /= factor;
+	return p; 
+}
+
+
+}
+
+#endif

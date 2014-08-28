@@ -82,7 +82,7 @@ inline void loadPointCloud(typename pcl::PointCloud<PointT>::Ptr		&pPointCloud,
 }
 
 template <typename PointT>
-void loadPointClouds(std::vector<typename pcl::PointCloud<PointT>::Ptr>		&pPointClouds,
+void loadPointCloud(std::vector<typename pcl::PointCloud<PointT>::Ptr>		&pPointClouds,
 						   const StringList													&strFileNames, 
 						   const std::string													&strPrefix = std::string(),
 						   const std::string													&strSuffix = std::string())
@@ -124,7 +124,7 @@ inline void savePointCloud(const typename pcl::PointCloud<PointT>::ConstPtr	&pPo
 }
 
 template <typename PointT>
-void savePointClouds(const std::vector<typename pcl::PointCloud<PointT>::Ptr>		&pPointClouds,
+void savePointCloud(const std::vector<typename pcl::PointCloud<PointT>::Ptr>		&pPointClouds,
 						   const StringList															&strFileNames, 
 						   const std::string															&strPrefix = std::string(),
 						   const std::string															&strSuffix = std::string(),				 

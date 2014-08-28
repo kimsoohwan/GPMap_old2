@@ -1,21 +1,33 @@
-#if 0
+#if 1
 
 // STL
 #include <string>
 #include <vector>
 #include <sstream>
+#include <algorithm>
 
 // GPMap
-#include "io/io.hpp"								// loadPointClouds, savePointClouds, loadSensorPositionList
-#include "octomap/octomap.hpp"				// Octomap
-
+#include "io/io.hpp"								// loadPointCloud, savePointCloud, loadSensorPositionList
+#include "visualization/cloud_viewer.hpp"	// show
+#include "octomap/octomap.hpp"				// OctoMap
 using namespace GPMap;
 
 int main(int argc, char** argv)
 {
 	// [0] setting - directory
-	const std::string strInputDataFolder ("../../data/input/bunny/");
-	const std::string strOutputDataFolder("../../data/output/bunny/");
+	const std::string strInputDataFolder			("../../data/bunny/input/");
+	const std::string strIntermediateDataFolder	("../../data/bunny/intermediate/");
+	const std::string strMetaDataFolder				("../../data/bunny/output/gpmap/meta_data/");
+	const std::string strOctomapOutputDataFolder	("../../data/bunny/output/octomap/");
+	const std::string strOctomapLogFolder			(strOctomapOutputDataFolder + "log/");
+	const std::string strOutputDataFolder			("../../data/bunny/output/gpmap/octree/");
+	const std::string strColorOutputDataFolder	("../../data/bunny/output/gpmap/octree/color/");
+	const std::string strOutputLogFolder			(strOutputDataFolder			 + "log/");
+	create_directory(strOctomapOutputDataFolder);
+	create_directory(strOctomapLogFolder);
+	create_directory(strOutputDataFolder);
+	create_directory(strColorOutputDataFolder);
+	create_directory(strOutputLogFolder);
 
 	// [0] setting - observations
 	const size_t NUM_OBSERVATIONS = 4; 
@@ -23,131 +35,301 @@ int main(int argc, char** argv)
 	StringList strObsFileNames(strObsFileNames_, strObsFileNames_ + NUM_OBSERVATIONS); 
 
 	// [0] setting - GPMaps
-	const size_t NUM_GPMAPS = 8; 
-	const std::string strGPMapFileNames_[]	= {"gpmap_meanZero_covSEiso_batch_BCM_der", 
-															"gpmap_meanZero_covSEiso_batch_BCM_func",
-															"gpmap_meanZero_covSEiso_batch_iBCM_der", 
-															"gpmap_meanZero_covSEiso_batch_iBCM_func",
-															"gpmap_meanZero_covSEiso_incremental_BCM_der", 
-															"gpmap_meanZero_covSEiso_incremental_BCM_func",
-															"gpmap_meanZero_covSEiso_incremental_iBCM_der",
-															"gpmap_meanZero_covSEiso_incremental_iBCM_func"};
+	const size_t NUM_GPMAPS = 18; 
+	const std::string strGPMapFileNames_[]	= {"gpmap_function_observations_batch", 
+															"gpmap_function_observations_iBCM_upto_0",
+															"gpmap_function_observations_iBCM_upto_1",
+															"gpmap_function_observations_iBCM_upto_2",
+															"gpmap_function_observations_iBCM_upto_3",
+															"gpmap_function_observations_BCM_upto_0",
+															"gpmap_function_observations_BCM_upto_1",
+															"gpmap_function_observations_BCM_upto_2",
+															"gpmap_function_observations_BCM_upto_3",
+															"gpmap_derivative_observations_batch", 
+															"gpmap_derivative_observations_iBCM_upto_0",
+															"gpmap_derivative_observations_iBCM_upto_1",
+															"gpmap_derivative_observations_iBCM_upto_2",
+															"gpmap_derivative_observations_iBCM_upto_3",
+															"gpmap_derivative_observations_BCM_upto_0",
+															"gpmap_derivative_observations_BCM_upto_1",
+															"gpmap_derivative_observations_BCM_upto_2",
+															"gpmap_derivative_observations_BCM_upto_3",
+															//"gpmap_all_observations_batch", 
+															//"gpmap_all_observations_iBCM_upto_0",
+															//"gpmap_all_observations_iBCM_upto_1",
+															//"gpmap_all_observations_iBCM_upto_2",
+															//"gpmap_all_observations_iBCM_upto_3",
+															//"gpmap_all_observations_BCM_upto_0",
+															//"gpmap_all_observations_BCM_upto_1",
+															//"gpmap_all_observations_BCM_upto_2",
+															//"gpmap_all_observations_BCM_upto_3",
+															};
 	StringList strGPMapFileNames(strGPMapFileNames_, strGPMapFileNames_ + NUM_GPMAPS); 
 
 	// [1] load/save hit points
 	PointXYZCloudPtrList hitPointCloudPtrList;
-	//loadPointClouds<pcl::PointXYZ>(hitPointCloudPtrList, strObsFileNames, strInputDataFolder, ".ply");			// original ply files which are transformed in global coordinates
-	//savePointClouds<pcl::PointXYZ>(hitPointCloudPtrList, strObsFileNames, strInputDataFolder, ".pcd");		// original pcd files which are transformed in global coordinates
-	loadPointClouds<pcl::PointXYZ>(hitPointCloudPtrList, strObsFileNames, strInputDataFolder, ".pcd");		// original pcd files which are transformed in global coordinates
-	//show<pcl::PointXYZ>("Hit Points", hitPointCloudPtrList);
+	loadPointCloud<pcl::PointXYZ>(hitPointCloudPtrList, strObsFileNames, strIntermediateDataFolder, ".pcd");		// original pcd files which are transformed in global coordinates
+	//for(size_t i = 0; i < hitPointCloudPtrList.size(); i++)
+	//{
+	//	std::cout << "Number of " << i << "-th Hit Points: " << hitPointCloudPtrList[i]->points.size() << std::endl;
+	//	for(size_t j = 0; j < hitPointCloudPtrList[i]->points.size(); j++)
+	//	{
+	//		const pcl::PointXYZ point(hitPointCloudPtrList[i]->points[j]);
+	//		hitPointCloudPtrList[i]->points[j].x = -point.y;
+	//		hitPointCloudPtrList[i]->points[j].y = -point.x;
+	//		hitPointCloudPtrList[i]->points[j].z = -point.z;
+	//	}
+	//}
+	//show<pcl::PointXYZ>("Hit Points", hitPointCloudPtrList, 0, 0, false, false, false, true);
+	//
+	//PointXYZCloudPtr pAllHitPointCloud(new PointXYZCloud());
+	//const std::string strFileNameAll	=  "bunny_all";
+	//loadPointCloud<pcl::PointXYZ>(pAllHitPointCloud, strFileNameAll, strIntermediateDataFolder, ".pcd");		// original pcd files which are transformed in global coordinates
+	//std::cout << "Number of All Hit Points: " << pAllHitPointCloud->points.size() << std::endl;
+	//for(size_t j = 0; j < pAllHitPointCloud->points.size(); j++)
+	//{
+	//	const pcl::PointXYZ point(pAllHitPointCloud->points[j]);
+	//	pAllHitPointCloud->points[j].x = -point.y;
+	//	pAllHitPointCloud->points[j].y = -point.x;
+	//	pAllHitPointCloud->points[j].z = -point.z;
+	//}
+	//show<pcl::PointXYZ>("All Hit Points", pAllHitPointCloud, 0, 0, false, false, false);
 
 	// [2] load sensor positions
 	PointXYZVList sensorPositionList;
 	loadSensorPositionList(sensorPositionList, strObsFileNames, strInputDataFolder, "_camera_position.txt");
-	//assert(NUM_OBSERVATIONS == hitPointCloudPtrList.size() && NUM_OBSERVATIONS == sensorPositionList.size());
+	assert(NUM_OBSERVATIONS == hitPointCloudPtrList.size() && NUM_OBSERVATIONS == sensorPositionList.size());
 
 	// [3] Octomaps
+	const double	RESOLUTION = 0.001;
 
 	// log file
-	LogFile logFile(strOutputDataFolder + "octomap.log");
+	LogFile logFile;
+	std::string strLogFilePath;
 
-	// setting
-	const double	RESOLUTION = 0.001;
-	Octomap<NO_COLOR> octomap(RESOLUTION);
-
-	// update
-	CPU_Times octomap_elapsed, octomap_total_elapsed;
-	octomap_total_elapsed.clear();
-	for(size_t i = 0; i < hitPointCloudPtrList.size(); i++)
+	bool fBuildOctoMap;
+	std::cout << "Do you wish to create OctoMap? (0/1)";
+	std::cin >> fBuildOctoMap;
+	std::cout << fBuildOctoMap << std::endl;
+	if(fBuildOctoMap)
 	{
-		logFile << "==== Updating the Octomap with the point cloud #" << i << " ====" << std::endl;
+		// log file
+		strLogFilePath = strOctomapLogFolder + "octomap.log";
+		logFile.open(strLogFilePath);
+		
+		// setting
+		OctoMap<NO_COLOR> octomap(RESOLUTION);
 
 		// update
-		octomap_elapsed = octomap.update<pcl::PointXYZ, pcl::PointXYZ>(*(hitPointCloudPtrList[i]), sensorPositionList[i]);
+		CPU_Times octomap_elapsed, octomap_total_elapsed;
+		octomap_total_elapsed.clear();
+		for(size_t i = 0; i < hitPointCloudPtrList.size(); i++)
+		{
+			logFile << "==== Updating the OctoMap with the point cloud #" << i << " ====" << std::endl;
 
-		// save
-		std::stringstream ss;
-		ss << strOutputDataFolder << "octomap_bunny_upto_" << i;
-		octomap.save(ss.str());
+			// update
+			octomap_elapsed = octomap.update<pcl::PointXYZ, pcl::PointXYZ>(*(hitPointCloudPtrList[i]), sensorPositionList[i]);
 
-		// accumulate cpu times
-		octomap_total_elapsed += octomap_elapsed;
-		logFile << octomap_elapsed << std::endl << std::endl;
+			// save
+			std::stringstream ss;
+			ss << strOctomapOutputDataFolder << "octomap_bunny_upto_" << i;
+			octomap.save(ss.str());
+
+			// accumulate cpu times
+			octomap_total_elapsed += octomap_elapsed;
+			logFile << octomap_elapsed << std::endl << std::endl;
+		}
+
+		// total time
+		logFile << "============= Total Time =============" << std::endl;
+		logFile << octomap_total_elapsed << std::endl << std::endl;
+
+		// [4] evaluation
+		logFile << "============= Evaluation =============" << std::endl;
+		unsigned int num_points, num_voxels_correct, num_voxels_wrong, num_voxels_unknown;
+		octomap.evaluate<pcl::PointXYZ, pcl::PointXYZ>(hitPointCloudPtrList, sensorPositionList,
+																	  num_points, num_voxels_correct, num_voxels_wrong, num_voxels_unknown);
+		logFile << "Number of hit points: " << num_points << std::endl;
+		logFile << "Number of correct voxels: " << num_voxels_correct << std::endl;
+		logFile << "Number of wrong voxels: " << num_voxels_wrong << std::endl;
+		logFile << "Number of unknown voxels: " << num_voxels_unknown << std::endl;
+		logFile << "Correct rate (correct/(correct+wrong)): " << static_cast<float>(num_voxels_correct)/static_cast<float>(num_voxels_correct + num_voxels_wrong) << std::endl;
 	}
-
-	// total time
-	logFile << "============= Total Time =============" << std::endl;
-	logFile << octomap_total_elapsed << std::endl << std::endl;
-
-	// [4] evaluation
-	logFile << "============= Evaluation =============" << std::endl;
-	unsigned int num_points, num_voxels_correct, num_voxels_wrong, num_voxels_unknown;
-	octomap.evaluate<pcl::PointXYZ, pcl::PointXYZ>(hitPointCloudPtrList, sensorPositionList,
-																  num_points, num_voxels_correct, num_voxels_wrong, num_voxels_unknown);
-	logFile << "Number of hit points: " << num_points << std::endl;
-	logFile << "Number of correct voxels: " << num_voxels_correct << std::endl;
-	logFile << "Number of wrong voxels: " << num_voxels_wrong << std::endl;
-	logFile << "Number of unknown voxels: " << num_voxels_unknown << std::endl;
-	logFile << "Correct rate (correct/(correct+wrong)): " << static_cast<float>(num_voxels_correct)/static_cast<float>(num_voxels_correct+num_voxels_wrong) << std::endl;
+	exit(0);
 
 	// [4] Convert GPMaps to Octomaps
+	// log file
+	strLogFilePath = strOutputLogFolder + "gpmap.log";
+	logFile.open(strLogFilePath);
+
+	// user input
+	bool fRunTraining;
+	logFile << "Do you wish to train PLSC hyperparameters? (0/1)";
+	std::cin >> fRunTraining;
+	logFile << fRunTraining << std::endl;
+
+	// max iterations
+	int maxIter; // 100
+	if(fRunTraining)
+	{
+		logFile << "Max Iterations? (0 for no training): ";
+		std::cin >> maxIter;	logFile << maxIter << std::endl;;
+	}
+
+	// PLSC hyperparameters
+	bool fUsePredefinedHyperparameters;
+	logFile << "Use Predefined PLSC Hyperparameters? (0/1) ";
+	std::cin >> fUsePredefinedHyperparameters;
+	logFile << fUsePredefinedHyperparameters << std::endl;;
+	if(fUsePredefinedHyperparameters)
+	{
+		// Train By Minimizing Sum of Negative Log Prediction Probability
+		//PLSC::mean	= 2.64143f;		//0.05f;
+		//PLSC::var	= 1.f;			//0.0001f;
+
+		// Train By Minimizing Minimizing Negative Evaluation Accuracy
+		PLSC::mean	= 7.1878f;
+		PLSC::var	= 1.f;		// a bit less? make it larger for detailed structure?
+	}
+	else
+	{
+		std::cout << "PLSC::mean: ";			std::cin >> PLSC::mean;		// 0.1f
+		std::cout << "PLSC::var: ";			std::cin >> PLSC::var;		// 0.1f
+	}
+	logFile << "PLSC::mean: "	<< PLSC::mean	<< std::endl;
+	logFile << "PLSC::var: "	<< PLSC::var	<< std::endl;
+
+	// convert GPMap to Octree
+	bool fConvertGPMap;
+	logFile << "Do you wish to convert GPMap to Octree? (0/1)";
+	std::cin >> fConvertGPMap;
+	logFile << fConvertGPMap << std::endl;
+
+	// for each GPMap
 	for(size_t i = 0; i < strGPMapFileNames.size(); i++)
 	{
 		std::cout << "================[ " << strGPMapFileNames[i] << " ]================" << std::endl;
 
-		// log file
-		std::string strLogFilePath = strOutputDataFolder + strGPMapFileNames[i] + "_visualization.log";
-		LogFile logFile;
-		logFile.open(strLogFilePath);
-
-		// setting - resolution and GPMap
+		// [4-0] Loading GPMap
 		pcl::PointCloud<pcl::PointNormal>::Ptr pPointCloudGPMap;
-		loadPointCloud<pcl::PointNormal>(pPointCloudGPMap, strOutputDataFolder + strGPMapFileNames[i] + ".pcd");
+		loadPointCloud<pcl::PointNormal>(pPointCloudGPMap, strMetaDataFolder + strGPMapFileNames[i] + ".pcd");
 
-		// [4-0] train PLSC parameters
-		//Octomap<NO_COLOR> octomap_train(RESOLUTION);
-		//octomap_train.GPMap2Octomap(*pPointCloudGPMap);
-		//float PLSC_mean = 0.05f;
-		//float PLSC_var  = 0.0001f;
-		//const float sumNegLOO = octomap_train.train(pPointCloudGPMap, PLSC_mean, PLSC_var, true, 1000);
-		//std::cout << "PLSC_mean = " << expf(PLSC_mean) << std::endl;
-		//std::cout << "PLSC_var = "  << expf(PLSC_var)  << std::endl;
-		//std::cout << "sumNegLOO = "  << sumNegLOO  << std::endl;
-		// sum_neg_log_occupied only:						PLSC_mean = 1.292437, PLSC_var = 1.000087, sumNegLOO = 2.286207
-		// sum_neg_log_occupied + sum_neg_log_empty: PLSC_mean = 2.64143,  PLSC_var = 1,			 sumNegLOO = 1.19209e-7
-		PLSC::mean = 2.64143f;
-		PLSC::var = 1.f;
+		// [4-1 train PLSC parameters
 
-		// [4-1] OcTree
-		Octomap<NO_COLOR> octomap(RESOLUTION);
-		octomap.GPMap2Octomap(*pPointCloudGPMap);
-		octomap.save(strOutputDataFolder + strGPMapFileNames[i]);
+		// training
+		if(fRunTraining && maxIter > 0)
+		{
+			// log file
+			strLogFilePath = strOutputLogFolder + strGPMapFileNames[i] + "_training.log";
+			logFile.open(strLogFilePath);
 
-		// [4-2] OcTree - evaluation
-		unsigned int num_points, num_voxels_correct, num_voxels_wrong, num_voxels_unknown;
-		octomap.evaluate<pcl::PointXYZ, pcl::PointXYZ>(hitPointCloudPtrList, sensorPositionList,
-																	  num_points, num_voxels_correct, num_voxels_wrong, num_voxels_unknown);
-		logFile << "Number of hit points: "			<< num_points				<< std::endl;
-		logFile << "Number of correct voxels: "	<< num_voxels_correct	<< std::endl;
-		logFile << "Number of wrong voxels: "		<< num_voxels_wrong		<< std::endl;
-		logFile << "Number of unknown voxels: "	<< num_voxels_unknown	<< std::endl;
-		logFile << "Correct rate (correct/(correct+wrong)): " << static_cast<float>(num_voxels_correct)/static_cast<float>(num_voxels_correct+num_voxels_wrong) << std::endl;
+			// train criteria
+			bool fTrainCriteria;
+			logFile << "Train By Minimizing Sum of Negative Log Prediction Probability (0)"
+					  << "\nor By Minimizing Negative Evaluation Accuracy (1)? ";
+			std::cin >> fTrainCriteria;
+			logFile << fTrainCriteria << std::endl;
 
-		// [4-3] ColorOcTree
-		Octomap<COLOR>		color_octomap(RESOLUTION);
-		color_octomap.GPMap2Octomap(*pPointCloudGPMap);
-		color_octomap.save(strOutputDataFolder + strGPMapFileNames[i] + "_color");
+			// convert GPMap to OctoMap
+			OctoMap<NO_COLOR> octomap_train(RESOLUTION, *pPointCloudGPMap);
 
-		std::cout << std::endl << std::endl;
+			// Train By Minimizing Sum of Negative Log Prediction Probability
+			if(!fTrainCriteria)
+			{
+				// consider both occupied and empty cells
+				bool fConsiderBothOccupiedAndEmpty;
+				logFile << "Consider both occupied and empty cells or not? (1/0) ";
+				std::cin >> fConsiderBothOccupiedAndEmpty;
+				logFile << fConsiderBothOccupiedAndEmpty << std::endl;
+
+				// train
+				const float sumNegLogPredProb = octomap_train.trainByMinimizingSumNegLogPredProb(pPointCloudGPMap, 
+																															PLSC::mean, 
+																															PLSC::var, 
+																															fConsiderBothOccupiedAndEmpty, 
+																															maxIter);
+				logFile << "PLSC::mean: "	<< PLSC::mean	<< std::endl;
+				logFile << "PLSC::var: "	<< PLSC::var	<< std::endl;
+				logFile << "sumNegLogPredProb = "  << sumNegLogPredProb  << std::endl;
+			}
+
+			// Train By Minimizing Minimizing Negative Evaluation Accuracy
+			else
+			{
+				// train
+				const float negEvalAccu = octomap_train.trainByMinimizingNegEvalAccu(pPointCloudGPMap,
+																											&hitPointCloudPtrList,
+																											&sensorPositionList,
+																											PLSC::mean,
+																											PLSC::var, 
+																											maxIter);
+				logFile << "PLSC::mean: "	<< PLSC::mean	<< std::endl;
+				logFile << "PLSC::var: "	<< PLSC::var	<< std::endl;
+				logFile << "negEvalAccu = "  << negEvalAccu  << std::endl;
+			}
+		}
+
+		// [4-2] Convert GPMap to Octree
+		if(fConvertGPMap)
+		{
+			// log file
+			strLogFilePath = strOutputLogFolder + strGPMapFileNames[i] + "_octree.log";
+			logFile.open(strLogFilePath);
+
+			// convert GPMap to Octree
+			OctoMap<NO_COLOR> octree(RESOLUTION, *pPointCloudGPMap);
+			octree.save(strOutputDataFolder + strGPMapFileNames[i]);
+
+			// [4-3] Convert GPMap to ColorOcTree
+			// min, max of means and variances
+			float minMean, maxMean, minVar, maxVar;
+			getMinMaxMeanVarOfOccupiedCells(*pPointCloudGPMap, minMean, maxMean, minVar, maxVar);
+
+			// file name
+			std::stringstream ss;
+			ss.precision(std::numeric_limits<float>::digits10);
+			ss << strColorOutputDataFolder << strGPMapFileNames[i] << "_color_"
+				<< "_min_var_" << std::scientific << minVar
+				<< "_max_var_" << std::scientific << maxVar;
+
+			// convert GPMap to ColorOcTree
+			OctoMap<COLOR> color_octree(RESOLUTION, *pPointCloudGPMap);
+			color_octree.save(ss.str());
+
+			// [4-4] Evaluation
+			unsigned int num_points, num_voxels_correct, num_voxels_wrong, num_voxels_unknown;
+			octree.evaluate<pcl::PointXYZ, pcl::PointXYZ>(hitPointCloudPtrList, sensorPositionList,
+																		  num_points, num_voxels_correct, num_voxels_wrong, num_voxels_unknown);
+			logFile << "Number of hit points: "			<< num_points				<< std::endl;
+			logFile << "Number of correct voxels: "	<< num_voxels_correct	<< std::endl;
+			logFile << "Number of wrong voxels: "		<< num_voxels_wrong		<< std::endl;
+			logFile << "Number of unknown voxels: "	<< num_voxels_unknown	<< std::endl;
+			logFile << "Correct rate (correct/(correct+wrong)): " << static_cast<float>(num_voxels_correct)/static_cast<float>(num_voxels_correct+num_voxels_wrong) << std::endl;
+		}
+		
+		logFile << std::endl << std::endl;
 	}
 
-	// [4-4] ColorOcTree - coloring with specific min/max ranges of variance
+	// [5] ColorOcTree - coloring with specific min/max ranges of variance
 	while(true)
 	{
 		// thresholds for color
 		float minVar; std::cout << "min var thld: "; std::cin >> minVar;
 		float maxVar; std::cout << "max var thld: "; std::cin >> maxVar;
 		if(minVar == maxVar) break;
+		minVar = std::min<float>(minVar, maxVar);
+		maxVar = std::max<float>(minVar, maxVar);
+
+		// [0] setting - directory
+		std::stringstream ss;
+		//ss << strOutputDataFolder << "color_min_var_" << std::scientific << minVar << "_max_var_" << std::scientific << maxVar << "/";
+		ss << strOutputDataFolder << "color_min_var_" << minVar << "_max_var_" << maxVar << "/";
+		const std::string strOutputDataFolder	(ss.str());
+		const std::string strOutputLogFolder	(strOutputDataFolder + "log/");
+		std::cout << "strOutputDataFolder = " << strOutputDataFolder << std::endl;
+		create_directory(strOutputDataFolder);
+		std::cout << "strOutputLogFolder = " << strOutputLogFolder << std::endl;
+		create_directory(strOutputLogFolder);
 
 		// for each GPMap
 		for(size_t i = 0; i < strGPMapFileNames.size(); i++)
@@ -155,14 +337,13 @@ int main(int argc, char** argv)
 			std::cout << "================[ " << strGPMapFileNames[i] << " ]================" << std::endl;
 
 			// log file
-			std::string strLogFilePath = strOutputDataFolder + strGPMapFileNames[i] + "_visualization_specific.log";
-			LogFile logFile;
+			strLogFilePath = strOutputLogFolder + strGPMapFileNames[i] + "_color_octree.log";
 			logFile.open(strLogFilePath);
 
-			// setting - resolution and GPMap
+			// loading
 			const double	RESOLUTION = 0.001;
 			pcl::PointCloud<pcl::PointNormal>::Ptr pPointCloudGPMap;
-			loadPointCloud<pcl::PointNormal>(pPointCloudGPMap, strOutputDataFolder + strGPMapFileNames[i] + ".pcd");
+			loadPointCloud<pcl::PointNormal>(pPointCloudGPMap, strMetaDataFolder + strGPMapFileNames[i] + ".pcd");
 
 			// file name
 			std::stringstream ss;
@@ -171,12 +352,11 @@ int main(int argc, char** argv)
 																			  << "_min_var_" << std::scientific << minVar
 																			  << "_max_var_" << std::scientific << maxVar;
 
-			// color octree
-			Octomap<COLOR>		color_octomap(RESOLUTION);
-			color_octomap.GPMap2Octomap(*pPointCloudGPMap, minVar, maxVar); 
-			color_octomap.save(ss.str());
+			// Convert GPMap to ColorOcTree
+			OctoMap<COLOR> color_octree(RESOLUTION, *pPointCloudGPMap, minVar, maxVar); 
+			color_octree.save(ss.str());
 
-			std::cout << std::endl << std::endl;
+			logFile << std::endl << std::endl;
 		}
 	}
 

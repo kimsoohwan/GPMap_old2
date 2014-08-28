@@ -6,6 +6,9 @@
 #include <string>
 #include <sstream>
 
+// Boost Thread
+#include <boost/thread/thread.hpp> 
+
 // PCL
 #include <pcl/point_cloud.h>						// pcl::PointCloud
 #include <pcl/common/common.h>					// pcl::getMinMax3D
@@ -45,13 +48,20 @@ template <typename PointT>
 void show(const std::string												&strWindowName,
 			 const typename pcl::PointCloud<PointT>::ConstPtr		&pPointCloud,
 			 const double														scale = 0.1,
-			 const float														downSampleLeafSize = 0.f)
+			 const float														downSampleLeafSize = 0.f,
+			 const bool															fBlackBackground = true,
+			 const bool															fDrawAxis = true,
+			 const bool															fDrawBoundingbox = true)
 {
 	// visualizer
 	pcl::visualization::PCLVisualizer viewer(strWindowName);
-	//viewer.setBackgroundColor(1, 1, 1);
-	viewer.setBackgroundColor(0, 0, 0);
-	viewer.addCoordinateSystem(1.0);
+
+	// background
+	if(fBlackBackground)		viewer.setBackgroundColor(0, 0, 0);
+	else							viewer.setBackgroundColor(1, 1, 1);
+
+	// axis
+	if(fDrawAxis)	viewer.addCoordinateSystem(1.0);
 
 	// points
 	typename pcl::PointCloud<PointT>::ConstPtr pTempPointCloud;
@@ -59,24 +69,29 @@ void show(const std::string												&strWindowName,
 	else									pTempPointCloud = pPointCloud;
 
 	// draw points
-	pcl::visualization::PointCloudColorHandlerGenericField<PointT> hColor(pTempPointCloud, "z");
-	viewer.addPointCloud<PointT>(pTempPointCloud, hColor, "cloud");
+	pcl::visualization::PointCloudColorHandlerGenericField<PointT> hHeightColor(pTempPointCloud, "z");
+	viewer.addPointCloud<PointT>(pTempPointCloud, hHeightColor, "cloud");
 	viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "cloud");
 
 	// draw normal vectors
 	addPointCloudNormals<PointT>(viewer, pTempPointCloud, scale, "normals");
 
 	// draw bounding box
-	PointT min_pt, max_pt;
-	pcl::getMinMax3D(*pPointCloud, min_pt, max_pt);
-	viewer.addCube(min_pt.x, max_pt.x, min_pt.y, max_pt.y, min_pt.z, max_pt.z);
-	std::stringstream ss_cube;
-	ss_cube << "min: " << min_pt.x << ", " << min_pt.y << ", " << min_pt.z << endl;
-	ss_cube << "max: " << max_pt.x << ", " << max_pt.y << ", " << max_pt.z << endl;
-	ss_cube << "size: " << max_pt.x - min_pt.x << ", " << max_pt.y - min_pt.y << ", " << max_pt.z - min_pt.z << endl;
+	if(fDrawBoundingbox)
+	{
+		PointT min_pt, max_pt;
+		pcl::getMinMax3D(*pPointCloud, min_pt, max_pt);
+		viewer.addCube(min_pt.x, max_pt.x, min_pt.y, max_pt.y, min_pt.z, max_pt.z);
+		std::stringstream ss_cube;
+		ss_cube << "min: " << min_pt.x << ", " << min_pt.y << ", " << min_pt.z << endl;
+		ss_cube << "max: " << max_pt.x << ", " << max_pt.y << ", " << max_pt.z << endl;
+		ss_cube << "size: " << max_pt.x - min_pt.x << ", " << max_pt.y - min_pt.y << ", " << max_pt.z - min_pt.z << endl;
 
-	// text and camera
-	viewer.addText(ss_cube.str(), 10, 100, "text_cube");
+		// text
+		viewer.addText(ss_cube.str(), 10, 100, "text_cube");
+	}
+
+	// camera
 	viewer.resetCameraViewpoint("cloud");
 
 	// pause
@@ -95,18 +110,27 @@ template <typename PointT>
 void show(const std::string														&strWindowName,
 			 const std::vector<typename pcl::PointCloud<PointT>::Ptr>	&pPointClouds,
 			 const double																scale = 0.1,
-			 const float																downSampleLeafSize = 0.f)
+			 const float																downSampleLeafSize = 0.f,
+			 const bool																	fBlackBackground = true,
+			 const bool																	fDrawAxis = true,
+			 const bool																	fDrawBoundingbox = true,
+			 const bool																	fDrawPreviousPointCloud = true)
 {
 	// visualizer
 	pcl::visualization::PCLVisualizer viewer(strWindowName);
-	//viewer.setBackgroundColor(1, 1, 1);
-	viewer.setBackgroundColor(0, 0, 0);
-	viewer.addCoordinateSystem(1.0);
+
+	// background
+	if(fBlackBackground)		viewer.setBackgroundColor(0, 0, 0);
+	else							viewer.setBackgroundColor(1, 1, 1);
+
+	// axis
+	if(fDrawAxis)	viewer.addCoordinateSystem(1.0);
 
 	// load files
 	for(size_t i = 0; i < pPointClouds.size(); i++)
 	{
-		std::stringstream ss_name; ss_name << (i+1) << " / " << pPointClouds.size();
+		std::stringstream ss_name; 
+		ss_name << (i+1) << " / " << pPointClouds.size();
 
 		// points
 		typename pcl::PointCloud<PointT>::ConstPtr pTempPointCloud;
@@ -114,46 +138,60 @@ void show(const std::string														&strWindowName,
 		else									pTempPointCloud = pPointClouds[i];
 
 		// draw points
-		std::string strPointCloudName = std::string("cloud: ") + ss_name.str();
-		pcl::visualization::PointCloudColorHandlerCustom<PointT> redColorHandle(pTempPointCloud, 255, 0, 0); // current: red
-		viewer.addPointCloud<PointT>(pTempPointCloud, redColorHandle, strPointCloudName);
+		const std::string strPointCloudName = std::string("cloud: ") + ss_name.str();
+		//pcl::visualization::PointCloudColorHandlerCustom<PointT> hColor(pTempPointCloud, 255, 0, 0); // current: red
+		pcl::visualization::PointCloudColorHandlerGenericField<PointT> hColor(pTempPointCloud, "z");	// height
+		viewer.addPointCloud<PointT>(pTempPointCloud, hColor, strPointCloudName);
 		viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, strPointCloudName);
 
 		// draw normal vectors
-		std::string strPointNormalName = std::string("normals: ") + ss_name.str();
-		addPointCloudNormals<PointT>(viewer, pTempPointCloud, scale, strPointNormalName);
+		const std::string strNormalCloudName = std::string("normals: ") + ss_name.str();
+		if(scale > 0) addPointCloudNormals<PointT>(viewer, pTempPointCloud, scale, strNormalCloudName);
 
 		// draw bounding box
-		PointT min_pt, max_pt;
-		pcl::getMinMax3D(*pPointClouds[i], min_pt, max_pt);
-		viewer.removeShape("cube");
-		viewer.addCube(min_pt.x, max_pt.x, min_pt.y, max_pt.y, min_pt.z, max_pt.z);
-		std::stringstream ss_cube;
-		ss_cube << "min: " << min_pt.x << ", " << min_pt.y << ", " << min_pt.z << endl;
-		ss_cube << "max: " << max_pt.x << ", " << max_pt.y << ", " << max_pt.z << endl;
-		ss_cube << "size: " << max_pt.x - min_pt.x << ", " << max_pt.y - min_pt.y << ", " << max_pt.z - min_pt.z << endl;
+		if(fDrawBoundingbox)
+		{
+			PointT min_pt, max_pt;
+			pcl::getMinMax3D(*pPointClouds[i], min_pt, max_pt);
+			viewer.removeShape("cube");
+			viewer.addCube(min_pt.x, max_pt.x, min_pt.y, max_pt.y, min_pt.z, max_pt.z);
+			std::stringstream ss_cube;
+			ss_cube << "min: " << min_pt.x << ", " << min_pt.y << ", " << min_pt.z << endl;
+			ss_cube << "max: " << max_pt.x << ", " << max_pt.y << ", " << max_pt.z << endl;
+			ss_cube << "size: " << max_pt.x - min_pt.x << ", " << max_pt.y - min_pt.y << ", " << max_pt.z - min_pt.z << endl;
 
-		// text and camera
-		if(i == 0)
-		{
-			viewer.addText(strPointCloudName, 10, 60, "text_cloud");
-			viewer.addText(ss_cube.str(), 10, 100, "text_cube");
-			viewer.resetCameraViewpoint(strPointCloudName);
+			// text
+			if(i == 0)
+			{
+				viewer.addText(strPointCloudName, 10, 60, "text_cloud");
+				viewer.addText(ss_cube.str(), 10, 100, "text_cube");
+			}
+			else
+			{
+				viewer.removeShape("text_cloud");
+				viewer.removeShape("text_cube");
+				viewer.addText(strPointCloudName, 10, 60, "text_cloud");
+				viewer.addText(ss_cube.str(), 10, 100, "text_cube");
+			}
 		}
-		else
-		{
-			viewer.removeShape("text_cloud");
-			viewer.removeShape("text_cube");
-			viewer.addText(strPointCloudName, 10, 60, "text_cloud");
-			viewer.addText(ss_cube.str(), 10, 100, "text_cube");
-		}
+
+		// camera
+		if(i == 0)	viewer.resetCameraViewpoint(strPointCloudName);
 
 		// pause
 		viewer.spin();
 
 		// next
-		pcl::visualization::PointCloudColorHandlerCustom<PointT> grayColorHandle(pTempPointCloud, 200, 200, 200); // previous: gray
-		viewer.updatePointCloud<PointT>(pTempPointCloud, grayColorHandle, strPointCloudName);
+		if(fDrawPreviousPointCloud)
+		{
+			pcl::visualization::PointCloudColorHandlerCustom<PointT> grayColorHandle(pTempPointCloud, 200, 200, 200); // previous: gray
+			viewer.updatePointCloud<PointT>(pTempPointCloud, grayColorHandle, strPointCloudName);
+		}
+		else
+		{
+			viewer.removeShape(strPointCloudName);
+			if(scale > 0) viewer.removeShape(strNormalCloudName);
+		}
 	}
 
 	// close

@@ -4,21 +4,21 @@
 
 // GPMap
 #include "serialization/eigen_serialization.hpp" // Eigen
-#include "io/io.hpp"								// loadPointClouds, savePointClouds, loadSensorPositionList
+#include "io/io.hpp"								// loadPointCloud, savePointCloud, loadSensorPositionList
 #include "visualization/cloud_viewer.hpp"	// show
 #include "data/training_data.hpp"			// genEmptyPointList
 #include "features/surface_normal.hpp"		// estimateSurfaceNormals
 #include "common/common.hpp"					// getMinMaxPointXYZ
 #include "octree/octree_gpmap.hpp"			// OctreeGPMap
 #include "octree/octree_viewer.hpp"			// OctreeViewer
-#include "octomap/octomap.hpp"				// Octomap
+#include "octomap/octomap.hpp"				// OctoMap
 using namespace GPMap;
 
 typedef OctreeGPMap<pcl::PointNormal, GP::MeanZeroDerObs, GP::CovSEisoDerObs, GP::LikGaussDerObs, GP::InfExactDerObs> OctreeGPMapType;
 
 int main(int argc, char**argv)
 {
-	Octomap o;
+	OctoMap o;
 
 		// [1] load sensor positions
 		//pcl::PointXYZ sensorPosition(7.2201273e-01, 2.5926464e-02, 1.6074278e-01);

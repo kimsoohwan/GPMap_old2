@@ -10,6 +10,9 @@
     <ClCompile Include="..\..\test\octree\test_octree_gpmap.cpp">
       <Filter>test</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\main\bunny\main_bunny_surface.cpp">
+      <Filter>main\bunny</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\include\bcm\bcm.hpp">
@@ -69,17 +72,26 @@
     <ClInclude Include="..\..\include\util\timer.hpp">
       <Filter>src\util</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\include\util\util.hpp">
-      <Filter>src\util</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\include\visualization\cloud_viewer.hpp">
       <Filter>src\visualization</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\main\macro_gpmap.hpp">
-      <Filter>main</Filter>
+    <ClInclude Include="..\..\include\iso_surface\iso_surface.hpp">
+      <Filter>src\iso_surface</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\include\util\color.hpp">
+    <ClInclude Include="..\..\include\bcm\gaussian.hpp">
+      <Filter>src\bcm</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\util\color_map.hpp">
       <Filter>src\util</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\util\random.hpp">
+      <Filter>src\util</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\octree\macro_gpmap.hpp">
+      <Filter>src\octree</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\octree\data_partitioning.hpp">
+      <Filter>src\octree</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

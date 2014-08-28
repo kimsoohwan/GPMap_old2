@@ -17,9 +17,9 @@
 namespace GPMap {
 
 /** @brief Leaf node type */
-template <typename BCM_T>
-class OctreeContainerIntVectorBCM : public pcl::octree::OctreeContainerDataTVector<int>, 
-												public BCM_T
+template <typename GPMapContainer>
+class OctreeGPMapContainer : public pcl::octree::OctreeContainerDataTVector<int>, 
+									  public GPMapContainer
 {
 public:
 	/** \brief Pushes a DataT element to internal DataT vector.

@@ -5,11 +5,13 @@
 #include <cmath>
 
 // GP
-#include "gp.h"						// LogFile
+#include "GP.h"						// LogFile, Epsilon
 using GP::LogFile;
+using GP::Epsilon;
 
 // GPMap
 #include "util/data_types.hpp"	// MatrixPtr, VectorPtr
+
 namespace GPMap {
 
 /** @brief Bayesian Committee Machine */
@@ -27,9 +29,9 @@ public:
 			isIndependent() != other.isIndependent()) return false;
 
 		// compare data only 
-		return (m_pSumOfInvCovs->isApprox(*(other.m_pSumOfInvCovs)) &&
-				  m_pSumOfWeightedMeans->isApprox(*(other.m_pSumOfWeightedMeans)));
-	}
+		return (m_pSumOfWeightedMeans->isApprox(*(other.m_pSumOfWeightedMeans)) &&
+						  m_pSumOfInvCovs->isApprox(*(other.m_pSumOfInvCovs)));
+}
 
 	/** @brief Comparison Operator */
 	inline bool operator!=(const BCM &other) const
@@ -69,8 +71,8 @@ public:
 		return fIsIndependent;
 	}
 
-	/** @brief Get mean and [co]variance */
-	bool get(VectorPtr &pMean, MatrixPtr &pCov) const
+	/** @brief Get means and variances */
+	bool get(VectorPtr &pMean, MatrixPtr &pVar) const
 	{
 		// memory check 
 		//assert(isInitialized());
@@ -80,9 +82,9 @@ public:
 		if(!pMean || pMean->size() != m_pSumOfWeightedMeans->size())	
 			pMean.reset(new Vector(m_pSumOfWeightedMeans->size()));
 
-		if(!pCov  || pCov->rows()  != m_pSumOfInvCovs->rows()
-					 || pCov->cols()  != m_pSumOfInvCovs->cols())			
-			pCov.reset(new Matrix(m_pSumOfInvCovs->rows(), m_pSumOfInvCovs->cols()));
+		if(!pVar  || pVar->rows()  != m_pSumOfInvCovs->rows()
+					 || pVar->cols()  != 1)			
+			pVar.reset(new Matrix(m_pSumOfInvCovs->rows(), 1));
 
 		// variance vector
 		if(isIndependent())
@@ -90,15 +92,15 @@ public:
 			// Sigma
 			//pCov->noalias() = m_pSumOfInvCovs->cwiseInverse();
 			// make it stable
-			for(size_t row = 0; row < m_pSumOfInvCovs->rows(); row++)
+			for(int row = 0; row < m_pSumOfInvCovs->rows(); row++)
 			{
-				if((*m_pSumOfInvCovs)(row, 0) > EPSILON)	(*pCov)(row, 0) = (*m_pSumOfInvCovs)(row, 0);
-				else													(*pCov)(row, 0) = EPSILON;
+				if((*m_pSumOfInvCovs)(row, 0) > Epsilon<float>::value)	(*pVar)(row, 0) = (*m_pSumOfInvCovs)(row, 0);
+				else																		(*pVar)(row, 0) = Epsilon<float>::value;
 			}
-			pCov->noalias() = pCov->cwiseInverse();
+			pVar->noalias() = pVar->cwiseInverse();
 
 			// mean
-			pMean->noalias() = pCov->cwiseProduct(*m_pSumOfWeightedMeans);
+			pMean->noalias() = pVar->cwiseProduct(*m_pSumOfWeightedMeans);
 		}
 
 		// covariance matrix
@@ -107,12 +109,12 @@ public:
 			// cholesky factor of the covariance matrix
 			CholeskyFactor L(*m_pSumOfInvCovs);
 
-			float num_iters = -1.f;
+			int num_iters(-1);
 			float factor;
 			while(L.info() != Eigen::/*ComputationInfo::*/Success)
 			{
-				num_iters += 1.f;
-				factor = static_cast<float>(powf(10, num_iters)) * EPSILON;
+				num_iters++;
+				factor = powf(10.f, static_cast<float>(num_iters)) * Epsilon<float>::value;
 				L.compute(*m_pSumOfInvCovs + factor * Matrix::Identity(m_pSumOfInvCovs->rows(), m_pSumOfInvCovs->cols()));
 			}
 			if(num_iters > 0)
@@ -148,9 +150,9 @@ public:
 
 			// Sigma
 #if EIGEN_VERSION_AT_LEAST(3,2,0)
-			pCov->noalias()	= L.solve(Matrix::Identity(m_pSumOfInvCovs->rows(), m_pSumOfInvCovs->cols()));	// (LL')*inv(Cov) = I
+			pVar->noalias()	= L.solve(Matrix::Identity(m_pSumOfInvCovs->rows(), m_pSumOfInvCovs->cols())).diagonal();	// (LL')*inv(Cov) = I
 #else
-			(*pCov)				= L.solve(Matrix::Identity(m_pSumOfInvCovs->rows(), m_pSumOfInvCovs->cols()));	// (LL')*inv(Cov) = I
+			(*pVar)				= L.solve(Matrix::Identity(m_pSumOfInvCovs->rows(), m_pSumOfInvCovs->cols())).diagonal();	// (LL')*inv(Cov) = I
 #endif
 
 			// mean
@@ -185,6 +187,13 @@ public:
 			m_pSumOfWeightedMeans->setZero();
 			m_pSumOfInvCovs->setZero();
 		}
+		else
+		{
+			// check size
+			assert(pMean->size() == m_pSumOfWeightedMeans->size());
+			assert(pCov->rows() == m_pSumOfInvCovs->rows() &&
+					 pCov->cols() == m_pSumOfInvCovs->cols());
+		}
 
 		// temporary variables
 		Vector weightedMean(pMean->size());				// weighted mean
@@ -197,10 +206,10 @@ public:
 			//invCov.noalias() = pCov->cwiseInverse();
 
 			// make it stable
-			for(size_t row = 0; row < pCov->rows(); row++)
+			for(int row = 0; row < pCov->rows(); row++)
 			{
-				if((*pCov)(row, 0) > EPSILON) invCov(row, 0) = (*pCov)(row, 0);
-				else									invCov(row, 0) = EPSILON;
+				if((*pCov)(row, 0) > Epsilon<float>::value)	invCov(row, 0) = (*pCov)(row, 0);
+				else														invCov(row, 0) = Epsilon<float>::value;
 			}
 			invCov.noalias() = invCov.cwiseInverse();
 
@@ -214,12 +223,12 @@ public:
 			// cholesky factor of the covariance matrix
 			CholeskyFactor L(*pCov);
 
-			float num_iters = -1.f;
+			int num_iters(-1);
 			float factor;
 			while(L.info() != Eigen::/*ComputationInfo::*/Success)
 			{
-				num_iters += 1.f;
-				factor = static_cast<float>(powf(10, num_iters)) * EPSILON;
+				num_iters++;
+				factor = powf(10.f, static_cast<float>(num_iters)) * Epsilon<float>::value;
 				L.compute(*pCov + factor * Matrix::Identity(pCov->rows(), pCov->cols()));
 			}
 			if(num_iters > 0)
@@ -272,25 +281,22 @@ public:
 		}
 
 		// add up
-		(*m_pSumOfInvCovs) += invCov;					// sum of inverted covariance matrices or variance vectors
-		(*m_pSumOfWeightedMeans) += weightedMean;	// sum of weighted means
+		(*m_pSumOfInvCovs)			+= invCov;			// sum of inverted covariance matrices or variance vectors
+		(*m_pSumOfWeightedMeans)	+= weightedMean;	// sum of weighted means
 	}
 
 protected:
-	/** @brief	sum of weighted means with its inverse covariance matrix 
+	/** @brief	Sum of weighted means with its inverse covariance matrix 
 	  * @detail	\f$\mathbf\mu_* = \mathbf\Sigma_*\left(\sum_{k=1}^K \mathbf\Sigma_k^{-1}\mathbf\mu_k\right)\f$
 	  */
 	VectorPtr m_pSumOfWeightedMeans;
 
-	/** @brief sum of inverse covariance matrices
+	/** @brief Sum of inverse covariance matrices
 	  * @detail	\f$\mathbf\Sigma_* = \left(\sum_{k=1}^K \mathbf\Sigma_k^{-1} - (K-1)\mathbf\Simga_0^{-1}\right)^{-1}\f$
 	  */
 	MatrixPtr m_pSumOfInvCovs;
-
-	static const float EPSILON;
 };
 
-const float BCM::EPSILON = 1e-8f; //1e-10f
 }
 
 

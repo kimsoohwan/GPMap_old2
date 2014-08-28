@@ -87,11 +87,13 @@
   <ItemGroup>
     <ClCompile Include="..\..\main\bunny\main_bunny_gpmap.cpp" />
     <ClCompile Include="..\..\main\bunny\main_bunny_octomap.cpp" />
+    <ClCompile Include="..\..\main\bunny\main_bunny_surface.cpp" />
     <ClCompile Include="..\..\test\octree\test_octree_gpmap.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\include\bcm\bcm.hpp" />
     <ClInclude Include="..\..\include\bcm\bcm_serializable.hpp" />
+    <ClInclude Include="..\..\include\bcm\gaussian.hpp" />
     <ClInclude Include="..\..\include\common\common.hpp" />
     <ClInclude Include="..\..\include\data\test_data.hpp" />
     <ClInclude Include="..\..\include\data\training_data.hpp" />
@@ -99,20 +101,22 @@
     <ClInclude Include="..\..\include\features\surface_normal.hpp" />
     <ClInclude Include="..\..\include\filter\filters.hpp" />
     <ClInclude Include="..\..\include\io\io.hpp" />
+    <ClInclude Include="..\..\include\iso_surface\iso_surface.hpp" />
     <ClInclude Include="..\..\include\octomap\octomap.hpp" />
+    <ClInclude Include="..\..\include\octree\data_partitioning.hpp" />
+    <ClInclude Include="..\..\include\octree\macro_gpmap.hpp" />
     <ClInclude Include="..\..\include\octree\octree_gpmap.hpp" />
     <ClInclude Include="..\..\include\octree\octree_container.hpp" />
     <ClInclude Include="..\..\include\octree\octree_viewer.hpp" />
     <ClInclude Include="..\..\include\plsc\plsc.hpp" />
     <ClInclude Include="..\..\include\serialization\eigen_dense_base_addons.hpp" />
     <ClInclude Include="..\..\include\serialization\eigen_serialization.hpp" />
-    <ClInclude Include="..\..\include\util\color.hpp" />
+    <ClInclude Include="..\..\include\util\color_map.hpp" />
     <ClInclude Include="..\..\include\util\data_types.hpp" />
     <ClInclude Include="..\..\include\util\filesystem.hpp" />
+    <ClInclude Include="..\..\include\util\random.hpp" />
     <ClInclude Include="..\..\include\util\timer.hpp" />
-    <ClInclude Include="..\..\include\util\util.hpp" />
     <ClInclude Include="..\..\include\visualization\cloud_viewer.hpp" />
-    <ClInclude Include="..\..\main\macro_gpmap.hpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

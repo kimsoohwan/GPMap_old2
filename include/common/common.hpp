@@ -9,9 +9,21 @@
 #include <pcl/point_cloud.h>		// pcl::PointCloud
 #include <pcl/common/common.h>	// pcl::getMinMax3D
 
-// GPMap
-#include "util/util.hpp"			// minPointXYZ, maxPointXYZ
 namespace GPMap {
+
+/** @brief		Find the minimum of two pcl::PointXYZ */
+template <typename PointT1, typename PointT2>
+inline pcl::PointXYZ minPointXYZ(const PointT1 &p1, const PointT2 &p2)
+{
+	return pcl::PointXYZ(min<float>(p1.x, p2.x), min<float>(p1.y, p2.y), min<float>(p1.z, p2.z));
+}
+
+/** @brief		Find the maximum of two pcl::PointXYZ */
+template <typename PointT1, typename PointT2>
+inline pcl::PointXYZ maxPointXYZ(const PointT1 &p1, const PointT2 &p2)
+{
+	return pcl::PointXYZ(max<float>(p1.x, p2.x), max<float>(p1.y, p2.y), max<float>(p1.z, p2.z));
+}
 
 template <typename PointT>
 void getMinMaxPointXYZ(const pcl::PointCloud<PointT>	&pointCloud,
@@ -60,6 +72,24 @@ void getMinMaxPointXYZ(const std::vector<typename pcl::PointCloud<PointT>::Ptr>	
 	}
 }
 
+/** @brief Combine two point cloud list */
+template <typename PointT>
+void combinePointCloud(const std::vector<typename pcl::PointCloud<PointT>::Ptr>		&pointCloudList1,
+							  const std::vector<typename pcl::PointCloud<PointT>::Ptr>		&pointCloudList2,
+							  std::vector<typename pcl::PointCloud<PointT>::Ptr>				&pointCloudList)
+{
+	// size check
+	assert(pointCloudList1.size() == pointCloudList2.size());
+	pointCloudList.resize(pointCloudList1.size());
+
+	// for each hit/empty point cloud, add them to the output list
+	for(size_t i = 0; i < pointCloudList1.size(); i++)
+	{
+		pointCloudList[i].reset(new pcl::PointCloud<PointT>());
+		*pointCloudList[i] += *pointCloudList1[i];
+		*pointCloudList[i] += *pointCloudList2[i];
+	}
+}
 
 }
 

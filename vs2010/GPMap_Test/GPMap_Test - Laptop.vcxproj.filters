@@ -19,6 +19,9 @@
     <ClInclude Include="..\..\test\plsc\test_plsc.hpp">
       <Filter>test\plsc</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\test\octree\test_data_partitioning.hpp">
+      <Filter>test\octree</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="test">
@@ -35,6 +38,9 @@
     </Filter>
     <Filter Include="test\plsc">
       <UniqueIdentifier>{78fe696e-7231-4e9b-a447-7d430bfc1a69}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="test\octree">
+      <UniqueIdentifier>{ec1d0703-d5a4-4625-be25-38227a66dd3a}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
 </Project>

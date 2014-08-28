@@ -21,12 +21,13 @@ using GP::LogFile;
 
 // GPMap
 #include "util/random.hpp"						// random_unique
+#include "util/timer.hpp"						// CPU_Times, CPU_Timer
+#include "io/io.hpp"								// savePointCloud
 #include "data/test_data.hpp"					// meshGrid
 #include "data/training_data.hpp"			// generateTrainingData
 #include "plsc/plsc.hpp"						// PLSC
+#include "data_partitioning.hpp"				// random_data_partition
 #include "octomap/octomap.hpp"				// OctoMap
-#include "util/timer.hpp"						// CPU_Times, CPU_Timer
-#include "io/io.hpp"								// savePointCloud
 namespace GPMap {
 
 //typedef OctreeGPMapContainer<BCM>						LeafT;
@@ -76,6 +77,7 @@ public:
    OctreeGPMap(const double			BLOCK_SIZE, 
 					const size_t			NUM_CELLS_PER_AXIS, 
 					const size_t			MIN_NUM_POINTS_TO_PREDICT,
+					const size_t			MAX_NUM_POINTS_TO_PREDICT,
 					const bool				FLAG_INDEPENDENT_TEST_POSITIONS,
 					const bool				FLAG_DUPLICATE_POINTS = false)
 		: pcl::octree::OctreePointCloud<MyPoinT, LeafT, BranchT, OctreeT>(BLOCK_SIZE),
@@ -84,6 +86,7 @@ public:
 		  NUM_CELLS_PER_BLOCK_					(NUM_CELLS_PER_AXIS*NUM_CELLS_PER_AXIS*NUM_CELLS_PER_AXIS),
 		  CELL_SIZE_								(BLOCK_SIZE/static_cast<double>(NUM_CELLS_PER_AXIS)),
 		  MIN_NUM_POINTS_TO_PREDICT_			(max<size_t>(1, MIN_NUM_POINTS_TO_PREDICT)),
+		  MAX_NUM_POINTS_TO_PREDICT_			(static_cast<int>(max<size_t>(1, MAX_NUM_POINTS_TO_PREDICT))),
 		  FLAG_INDEPENDENT_TEST_POSITIONS_	(FLAG_INDEPENDENT_TEST_POSITIONS),
 		  FLAG_DUPLICATE_POINTS_				(FLAG_DUPLICATE_POINTS),
 		  m_pXs(new Matrix(NUM_CELLS_PER_BLOCK_, 3))
@@ -377,9 +380,6 @@ public:
 		logFile << "hyp.lik = "  << std::endl << logHyp.lik.array().exp().matrix()  << std::endl << std::endl;
 
 		// for each leaf node
-		LeafNode* pLeafNode;
-		Indices indexList;
-		Scalar nlZ;
 		size_t blockCount(0);
 #ifdef CONST_LEAF_NODE_ITERATOR_
 		LeafNodeIterator iter(*this);
@@ -394,18 +394,55 @@ public:
 		{
 			// leaf node corresponding the octree key
 #ifdef CONST_LEAF_NODE_ITERATOR_
-			pLeafNode = static_cast<LeafNode*>(iter.getCurrentOctreeNode())->getDataTVector();
+			const LeafNode* pLeafNode = static_cast<LeafNode*>(iter.getCurrentOctreeNode())->getDataTVector();
 #else
 			// key
 			genOctreeKeyforPointXYZ(*iter, key);
-			pLeafNode = findLeaf(key);
+			const LeafNode* pLeafNode = findLeaf(key);
 #endif
 			// get indices
 			const Indices &indexList = pLeafNode->getDataTVector();
 
-			// if there is no point in the node, ignore it
+			// if there is two small number of points in the node, ignore it
 			if(indexList.size() < MIN_NUM_POINTS_TO_PREDICT_) continue;
 			logFile << blockCount << "(" << indexList.size() << "), ";
+
+			// negative log marginal likelihood
+			sumNlZ += negativeLogMarginalLikelihood(indexList);
+		}
+
+		logFile << std::endl << "sumNlZ = " << sumNlZ << std::endl << std::endl;
+		return sumNlZ;
+	}
+
+	/** @brief		Negative log marginal likelihood given */
+	GP::DlibScalar negativeLogMarginalLikelihood(const Indices &indexList)
+	{
+		// negative log marginal likelihood
+		GP::DlibScalar nlZ(0);
+
+		// if the data is too big, divide and conquer
+		// assume that subset training data are independent
+		std::vector<std::vector<int> > partitionedIndices;
+		if(random_data_partition(indexList, MAX_NUM_POINTS_TO_PREDICT_, partitionedIndices))
+		{
+			// log file
+			LogFile logFile;
+
+			// do it recursively
+			for(size_t i = 0; i < partitionedIndices.size(); i++)
+			{
+				logFile << "sub dataset: " << i << "(" << partitionedIndices[i].size() << "), ";
+
+				// predict recursively
+				nlZ += negativeLogMarginalLikelihood(partitionedIndices[i], t_training_sub);
+			}
+			logFile << std::endl;
+		}
+		else
+		{
+			// if too small number of data is left by divide and conquer, ignore it
+			if(indexList.size() < MIN_NUM_POINTS_TO_PREDICT_) return;
 
 			// training data
 			MatrixPtr pX, pXd; VectorPtr pYYd;
@@ -413,19 +450,17 @@ public:
 			GP::DerivativeTrainingData<float> derivativeTrainingData;
 			derivativeTrainingData.set(pX, pXd, pYYd);
 
-			//InfType::negativeLogMarginalLikelihood(logHyp, 
+			// negative log marginalikelihood
+			Scalar tempNlZ;
 			GPType::negativeLogMarginalLikelihood(logHyp, 
 															  derivativeTrainingData,
-															  nlZ, 
+															  tempNlZ, 
 															  VectorPtr(),
 															  1);
-
-			// sum
-			sumNlZ += static_cast<GP::DlibScalar>(nlZ);
+			nlZ = static_cast<GP::DlibScalar>(tempNlZ);
 		}
 
-		logFile << std::endl << "sumNlZ = " << sumNlZ << std::endl << std::endl;
-		return sumNlZ;
+		return nlZ;
 	}
 
 	/** @brief		Update the GPMap with new observations
@@ -1303,79 +1338,114 @@ protected:
 		t_predict.clear();
 		t_combine.clear();
 
-		// training data
-		MatrixPtr pX, pXd; VectorPtr pYYd;
-		generateTrainingData(input_, indexList, m_gap, pX, pXd, pYYd);	
-		GP::DerivativeTrainingData<float> derivativeTrainingData;
-		derivativeTrainingData.set(pX, pXd, pYYd);
-
-		// test data
-		GP::TestData<float> testData;
-		MatrixPtr pXs(new Matrix(NUM_CELLS_PER_BLOCK_, 3));
-		Matrix minValue(1, 3); 
-		minValue << min_pt.x(), min_pt.y(), min_pt.z();
-		pXs->noalias() = (*m_pXs) + minValue.replicate(NUM_CELLS_PER_BLOCK_, 1);
-		testData.set(pXs);
-
-		// train
-		//Hyp localLogHyp(logHyp);
-		Hyp localLogHyp;
-		localLogHyp.mean = logHyp.mean;
-		localLogHyp.cov = logHyp.cov;
-		localLogHyp.lik = logHyp.lik;
-
-		// train
-		if(maxIter > 0)
+		// if the data is too big, divide and conquer
+		// assume that subset training data are independent
+		std::vector<std::vector<int> > partitionedIndices;
+		if(random_data_partition(indexList, MAX_NUM_POINTS_TO_PREDICT_, partitionedIndices))
 		{
-			// timer - start
-			CPU_Timer timer;
+			// log file
+			LogFile logFile;
+
+			// do it recursively
+			for(size_t i = 0; i < partitionedIndices.size(); i++)
+			{
+				logFile << "sub dataset: " << i << "(" << partitionedIndices[i].size() << "), ";
+
+				// temp times
+				CPU_Times	t_training_sub;
+				CPU_Times	t_predict_sub;
+				CPU_Times	t_combine_sub;
+
+				// predict recursively
+				predict(logHyp, partitionedIndices[i], min_pt, pLeafNode, maxIter, 
+						  t_training_sub, t_predict_sub, t_combine_sub);
+
+				// sum up times
+				t_training	+= t_training_sub;
+				t_predict	+= t_predict_sub;
+				t_combine	+= t_combine_sub;
+			}
+			logFile << std::endl;
+		}
+		else
+		{
+			// if too small number of data is left by divide and conquer, ignore it
+			if(indexList.size() < MIN_NUM_POINTS_TO_PREDICT_) return;
+
+			// training data
+			MatrixPtr pX, pXd; VectorPtr pYYd;
+			generateTrainingData(input_, indexList, m_gap, pX, pXd, pYYd);	
+			GP::DerivativeTrainingData<float> derivativeTrainingData;
+			derivativeTrainingData.set(pX, pXd, pYYd);
+
+			// test data
+			GP::TestData<float> testData;
+			MatrixPtr pXs(new Matrix(NUM_CELLS_PER_BLOCK_, 3));
+			Matrix minValue(1, 3); 
+			minValue << min_pt.x(), min_pt.y(), min_pt.z();
+			pXs->noalias() = (*m_pXs) + minValue.replicate(NUM_CELLS_PER_BLOCK_, 1);
+			testData.set(pXs);
 
 			// train
-			GPType::train<GP::BOBYQA, GP::NoStopping>(localLogHyp, derivativeTrainingData, maxIter);
+			//Hyp localLogHyp(logHyp);
+			Hyp localLogHyp;
+			localLogHyp.mean = logHyp.mean;
+			localLogHyp.cov = logHyp.cov;
+			localLogHyp.lik = logHyp.lik;
+
+			// train
+			if(maxIter > 0)
+			{
+				// timer - start
+				CPU_Timer timer;
+
+				// train
+				GPType::train<GP::BOBYQA, GP::NoStopping>(localLogHyp, derivativeTrainingData, maxIter);
 		
-			// timer - end
-			t_training = timer.elapsed();
+				// timer - end
+				t_training = timer.elapsed();
 
-			// log file
-			LogFile logFile;
-			logFile << "trained hyperparameters" 
-					  << localLogHyp.cov.array().exp().matrix() 
-					  << localLogHyp.lik.array().exp().matrix() << std::endl;
-		}
+				// log file
+				LogFile logFile;
+				logFile << "trained hyperparameters" 
+						  << localLogHyp.cov.array().exp().matrix() 
+						  << localLogHyp.lik.array().exp().matrix() << std::endl;
+			}
 
-		// predict and update
-		try
-		{
-			// predict
+			// predict and update
+			try
 			{
-				// timer - start
-				CPU_Timer timer;
-
 				// predict
-				GPType::predict(localLogHyp, derivativeTrainingData, testData, FLAG_INDEPENDENT_TEST_POSITIONS_);			// perBatch = 1000
-				//GPType::predict(localLogHyp, derivativeTrainingData, testData, FLAG_INDEPENDENT_TEST_POSITIONS_, 0);	// perBatch = all
+				{
+					// timer - start
+					CPU_Timer timer;
 
-				// timer - end
-				t_predict = timer.elapsed();
-			}
+					// predict
+					GPType::predict(localLogHyp, derivativeTrainingData, testData, FLAG_INDEPENDENT_TEST_POSITIONS_);			// perBatch = 1000
+					//GPType::predict(localLogHyp, derivativeTrainingData, testData, FLAG_INDEPENDENT_TEST_POSITIONS_, 0);	// perBatch = all
+
+					// timer - end
+					t_predict = timer.elapsed();
+				}
 			
-			// update
-			{
-				// timer - start
-				CPU_Timer timer;
-
 				// update
-				pLeafNode->update(testData.pMu(), testData.pSigma());
+				{
+					// timer - start
+					CPU_Timer timer;
 
-				// timer - end
-				t_combine = timer.elapsed();
+					// update
+					pLeafNode->update(testData.pMu(), testData.pSigma());
+
+					// timer - end
+					t_combine = timer.elapsed();
+				}
 			}
-		}
-		catch(GP::Exception &e)
-		{
-			// log file
-			LogFile logFile;
-			logFile << e.what() << std::endl;
+			catch(GP::Exception &e)
+			{
+				// log file
+				LogFile logFile;
+				logFile << e.what() << std::endl;
+			}
 		}
 	}
 
@@ -1402,6 +1472,7 @@ protected:
 
 	/** @brief		Minimum number of points to predict signed distances with GPR */
 	const size_t	MIN_NUM_POINTS_TO_PREDICT_;
+	const int		MAX_NUM_POINTS_TO_PREDICT_;
 
 	/** @brief For generating empty points */
 	float				m_gap;

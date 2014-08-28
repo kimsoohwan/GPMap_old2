@@ -15,10 +15,24 @@ using namespace GPMap;
 
 int main(int argc, char** argv)
 {
+	// [0] GPMap - setting
+	// CELL_SIZE = 0.001
+	//const double	BLOCK_SIZE	= 0.003;		const size_t	NUM_CELLS_PER_AXIS	= 3;		// NUM_CELLS_PER_BLOCK = 3*3*3 = 27						BCM/iBCM (too small BLOCK_SIZE to produce non-smooth signed distance function)
+	//const double	BLOCK_SIZE	= 0.01;		const size_t	NUM_CELLS_PER_AXIS	= 10;		// NUM_CELLS_PER_BLOCK = 10*10*10 = 1,000				BCM/iBCM
+	//const double	BLOCK_SIZE	= 0.03;		const size_t	NUM_CELLS_PER_AXIS	= 30;		// NUM_CELLS_PER_BLOCK = 30*30*30 = 27,000			iBCM (sparse_ell for Der Obs): good?
+	//const double	BLOCK_SIZE	= 0.06;		const size_t	NUM_CELLS_PER_AXIS	= 60;		// NUM_CELLS_PER_BLOCK = 60*60*60 = 216,000			iBCM (2*sparse_ell for Der Obs): very good?
+	//const double	BLOCK_SIZE	= 0.15;		const size_t	NUM_CELLS_PER_AXIS	= 150;	// NUM_CELLS_PER_BLOCK = 150*150*150 = 3,375,000	iBCM (spase_ell for Func Obs)	
+	double	BLOCK_SIZE;				std::cout << "Block Size? ";						std::cin >> BLOCK_SIZE;
+	size_t	NUM_CELLS_PER_AXIS;	std::cout << "Number of cells per axis? ";	std::cin >> NUM_CELLS_PER_AXIS;
+
 	// [0] setting - directory
 	const std::string strInputDataFolder			("../../data/bunny/input/");
 	const std::string strIntermediateDataFolder	("../../data/bunny/intermediate/");
-	const std::string strGPMapDataFolder			("../../data/bunny/output/gpmap/");
+
+	std::stringstream ss; 
+	ss << "../../data/bunny/output/gpmap_block_size_" << BLOCK_SIZE 
+												<< "_cell_size_" << static_cast<float>(BLOCK_SIZE)/static_cast<float>(NUM_CELLS_PER_AXIS) << "/";
+	const std::string strGPMapDataFolder			(ss.str());
 	const std::string strOutputDataFolder			("../../data/bunny/output/gpmap/meta_data/");
 	const std::string strOutputLogFolder			(strOutputDataFolder + "log/");
 	create_directory(strGPMapDataFolder);
@@ -88,29 +102,6 @@ int main(int argc, char** argv)
 		loadPointCloud<pcl::PointNormal>(pAllDerObs, strFileNameAll, strIntermediateDataFolder, "_der_obs.pcd");
 		show<pcl::PointNormal>("All Surface Normals", pAllDerObs, 0.005, 0.001);
 
-		// check density
-		typedef pcl::octree::OctreePointCloudDensity<pcl::PointNormal> PointNormalOctree;
-		PointNormalOctree octree(0.03f);
-		octree.setInputCloud(pAllDerObs);
-		octree.addPointsFromInputCloud();
-		PointNormalOctree::LeafNodeIterator iter(octree);
-		size_t nLeafNodes(0), nPoint;
-		size_t minNumPointsInLeafNode	= std::numeric_limits<size_t>::max();
-		size_t maxNumPointsInLeafNode	= std::numeric_limits<size_t>::min();
-		while(*++iter)
-		{
-			// leaf node counter
-			nLeafNodes++;
-
-			// leaf node
-			PointNormalOctree::LeafNode *pLeafNode = static_cast<PointNormalOctree::LeafNode *>(iter.getCurrentOctreeNode());
-			logFile << nLeafNodes << ": " << pLeafNode->getPointCounter() << std::endl;
-
-			// min, max
-			minNumPointsInLeafNode	= std::min<size_t>(minNumPointsInLeafNode, pLeafNode->getPointCounter());
-			maxNumPointsInLeafNode	= std::max<size_t>(maxNumPointsInLeafNode, pLeafNode->getPointCounter());
-		}
-
 		// [5] load/save all observations
 		PointNormalCloudPtrList allObsCloudPtrList;
 		combinePointCloud<pcl::PointNormal>(funcObsCloudPtrList, derObsCloudPtrList, allObsCloudPtrList);
@@ -137,8 +128,8 @@ int main(int argc, char** argv)
 
 	// [6] GPMap - setting
 	// constants
-	const double	BLOCK_SIZE						= 0.003;		//
-	const size_t	NUM_CELLS_PER_AXIS			= 3;			// CELL_SIZE = 0.001, NUM_CELLS_PER_BLOCK = 27
+	//const double	BLOCK_SIZE						= 0.003;		//
+	//const size_t	NUM_CELLS_PER_AXIS			= 3;			// CELL_SIZE = 0.001, NUM_CELLS_PER_BLOCK = 27
 	//const double	BLOCK_SIZE						= 0.1;		//
 	//const size_t	NUM_CELLS_PER_AXIS			= 100;		// CELL_SIZE = 0.001, NUM_CELLS_PER_BLOCK = 1,000,000 wow!!!
 	//const double	BLOCK_SIZE						= 0.01;		// too big = too many training points

@@ -103,8 +103,8 @@ void generateTrainingData(const PointNormalCloudConstPtr		&pPointNormalCloud,
 			(*pX)(Nf + i, 0)	= pointNormal.x + gap * pointNormal.normal_x;
 			(*pX)(Nf + i, 1)	= pointNormal.y + gap * pointNormal.normal_y;
 			(*pX)(Nf + i, 2)	= pointNormal.z + gap * pointNormal.normal_z;
-			//(*pYYd)(Nf+i)	= -gap; // outside: negative distance
-			(*pYYd)(Nf+i)		= gap; // ???
+			(*pYYd)(Nf+i)	= -gap; // outside: negative distance
+			//(*pYYd)(Nf+i)		= gap; // ???
 		}
 
 		// derivative observation

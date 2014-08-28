@@ -89,15 +89,15 @@ public:
 		// variance vector
 		if(isIndependent())
 		{
-			// variance
-			pVar->noalias() = m_pSumOfInvCovs->cwiseInverse();
-
+			// Sigma
+			//pCov->noalias() = m_pSumOfInvCovs->cwiseInverse();
 			// make it stable
-			const float inv_eps = 1.f / Epsilon<float>::value;
 			for(int row = 0; row < m_pSumOfInvCovs->rows(); row++)
 			{
-				if((*m_pSumOfInvCovs)(row, 0) < Epsilon<float>::value)	(*pVar)(row, 0) = inv_eps;
+				if((*m_pSumOfInvCovs)(row, 0) > Epsilon<float>::value)	(*pVar)(row, 0) = (*m_pSumOfInvCovs)(row, 0);
+				else																		(*pVar)(row, 0) = Epsilon<float>::value;
 			}
+			pVar->noalias() = pVar->cwiseInverse();
 
 			// mean
 			pMean->noalias() = pVar->cwiseProduct(*m_pSumOfWeightedMeans);
@@ -203,14 +203,15 @@ public:
 		if(isIndependent())
 		{
 			// inv(Sigma)
-			invCov.noalias() = pCov->cwiseInverse();
+			//invCov.noalias() = pCov->cwiseInverse();
 
 			// make it stable
-			const float inv_eps = 1.f / Epsilon<float>::value;
 			for(int row = 0; row < pCov->rows(); row++)
 			{
-				if((*pCov)(row, 0) < Epsilon<float>::value)	invCov(row, 0) = inv_eps;
+				if((*pCov)(row, 0) > Epsilon<float>::value)	invCov(row, 0) = (*pCov)(row, 0);
+				else														invCov(row, 0) = Epsilon<float>::value;
 			}
+			invCov.noalias() = invCov.cwiseInverse();
 
 			// inv(Sigma)*mean
 			weightedMean.noalias() = invCov.cwiseProduct(*pMean);

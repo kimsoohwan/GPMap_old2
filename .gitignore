@@ -216,6 +216,7 @@ pip-log.txt
 
 # Point Cloud
 *.pcd
+*.ply
 
 # Octomap data
 *.ot

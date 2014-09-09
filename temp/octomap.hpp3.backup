@@ -6,9 +6,8 @@
 #include <vector>
 #include <algorithm>					// min, max
 #include <fstream>
-#include <cmath>						// logf
 #include <limits>						// std::numeric_limits<float>::digits10
-											// std::numeric_limits<T>::min(), max()
+#include <cmath>						// logf
 
 // PCL
 #include <pcl/point_types.h>		// pcl::PointXYZ, pcl::Normal, pcl::PointNormal
@@ -31,9 +30,9 @@ using GP::LogFile;
 namespace GPMap {
 
 /** @brief Get min and max of means and variances of occupied cells in GPMap */
-void getMinMaxMeanVarOfOccupiedCells(const pcl::PointCloud<pcl::PointNormal>	&pointCloudGPMap,
-												 float &minMean,	float &maxMean,
-												 float &minVar,		float &maxVar)
+static void getMinMaxMeanVarOfOccupiedCells(const pcl::PointCloud<pcl::PointNormal>	&pointCloudGPMap,
+															float &minMean,	float &maxMean,
+															float &minVar,		float &maxVar)
 {
 	// min, max
 	minMean	= std::numeric_limits<float>::max();
@@ -67,19 +66,6 @@ void getMinMaxMeanVarOfOccupiedCells(const pcl::PointCloud<pcl::PointNormal>	&po
 	logFile << "Max Mean: " << std::setprecision(std::numeric_limits<float>::digits10) << std::scientific << maxMean << std::endl;
 	logFile << "Min Var: "  << std::setprecision(std::numeric_limits<float>::digits10) << std::scientific << minVar  << std::endl;
 	logFile << "Max Var: "  << std::setprecision(std::numeric_limits<float>::digits10) << std::scientific << maxVar  << std::endl;
-}
-
-/** @brief Converting a PCL PointCloud to an octomap Pointcloud */
-template <typename PointT>
-void pcd2pc(const pcl::PointCloud<PointT>	&pointCloud,
-				octomap::Pointcloud				&pc)
-{
-	// clear
-	pc.clear();
-
-	// add points
-	for(size_t i = 0; i < pointCloud.size(); i++)
-		pc.push_back(pointCloud.points[i].x, pointCloud.points[i].y, pointCloud.points[i].z);
 }
 
 class NO_COLOR {};
@@ -120,14 +106,13 @@ public:
 	  */
 	OctoMap(const double											resolution,
 			  const pcl::PointCloud<pcl::PointNormal>		&pointCloudGPMap,
-			  const float											maxVarThld = std::numeric_limits<float>::max(),
 			  const bool											fSetLogOddValue = true,
 			  const bool											FLAG_SIMPLE_UPDATE = false)
 		:	m_resolution(resolution),
 			m_pOctree(new MyOctomapT(resolution)),
 			FLAG_SIMPLE_UPDATE_(FLAG_SIMPLE_UPDATE)
 	{
-		GPMap2Octomap(pointCloudGPMap, maxVarThld, fSetLogOddValue);
+		GPMap2Octomap(pointCloudGPMap, fSetLogOddValue);
 	}
 
 	/** @brief			Constructor 
@@ -137,14 +122,13 @@ public:
 			  const pcl::PointCloud<pcl::PointNormal>		&pointCloudGPMap,
 			  const float											minVarRangeForColor,
 			  const float											maxVarRangeForColor,
-			  const float											maxVarThld = std::numeric_limits<float>::max(),
 			  const bool											fSetLogOddValue = true,
 			  const bool											FLAG_SIMPLE_UPDATE = false)
 		:	m_resolution(resolution),
 			m_pOctree(new MyOctomapT(resolution)),
 			FLAG_SIMPLE_UPDATE_(FLAG_SIMPLE_UPDATE)
 	{
-		GPMap2Octomap(pointCloudGPMap, minVarRangeForColor, maxVarRangeForColor, maxVarThld, fSetLogOddValue);
+		GPMap2Octomap(pointCloudGPMap, minVarRangeForColor, maxVarRangeForColor, fSetLogOddValue);
 	}
 
 	/** @brief	Update a node of the octomap
@@ -176,9 +160,8 @@ public:
 
 		// point cloud
 		octomap::Pointcloud pc;
-		//for(size_t i = 0; i < pointCloud.size(); i++)
-		//	pc.push_back(pointCloud.points[i].x, pointCloud.points[i].y, pointCloud.points[i].z);
-		pcd2pc<PointT1>(pointCloud, pc);
+		for(size_t i = 0; i < pointCloud.size(); i++)
+			pc.push_back(pointCloud.points[i].x, pointCloud.points[i].y, pointCloud.points[i].z);
 
 		// timer - start
 		CPU_Timer timer;
@@ -261,9 +244,8 @@ public:
 			// point cloud
 			num_points += pHitPointCloudPtrList[i]->size();
 			octomap::Pointcloud pc;
-			//for(size_t j = 0; j < pHitPointCloudPtrList[i]->size(); j++)
-			//	pc.push_back(pHitPointCloudPtrList[i]->points[j].x, pHitPointCloudPtrList[i]->points[i].y, pHitPointCloudPtrList[i]->points[j].z);
-			pcd2pc<PointT1>(*(pHitPointCloudPtrList[i]), pc);
+			for(size_t j = 0; j < pHitPointCloudPtrList[i]->size(); j++)
+				pc.push_back(pHitPointCloudPtrList[i]->points[j].x, pHitPointCloudPtrList[i]->points[i].y, pHitPointCloudPtrList[i]->points[j].z);
 
 			// free/occupied cells
 			octomap::KeySet free_cells, occupied_cells;
@@ -304,8 +286,8 @@ public:
 	  * @return		Minimum sum of log inference probabilities of occupied centers 
 	 */
 	GP::DlibScalar trainByMinimizingSumNegLogPredProb(const pcl::PointCloud<pcl::PointNormal>::ConstPtr	&pPointNormalCloudGPMap,
-																	  float							&PLSC_alpha, 
-																	  float							&PLSC_beta, 
+																	  float							&PLSC_mean, 
+																	  float							&PLSC_var, 
 																	  const bool					fConsiderBothOccupiedAndEmpty,
 																	  const int						maxIter, 
 																	  const GP::DlibScalar		minValue = 1e-15)
@@ -318,19 +300,19 @@ public:
 		// conversion from PLSC hyperparameters to a Dlib vector
 		GP::DlibVector hypDlib;
 		hypDlib.set_size(2);
-		hypDlib(0, 0) = PLSC_alpha;
-		hypDlib(1, 0) = PLSC_beta;
+		hypDlib(0, 0) = PLSC_mean;
+		hypDlib(1, 0) = log(PLSC_var);
 
 		// trainer
 		GP::DlibScalar sumNegLogPredProb = GP::TrainerUsingApproxDerivatives<OctoMap>::train<GP::BOBYQA, GP::NoStopping>(hypDlib, *this, maxIter, minValue);
 
 		// conversion from a Dlib vector to PLSC hyperparameters
-		PLSC_alpha	= hypDlib(0, 0);
-		PLSC_beta	= hypDlib(1, 0);
+		PLSC_mean	= hypDlib(0, 0);
+		PLSC_var		= expf(hypDlib(1, 0));
 
 		// set the static variables
-		PLSC::alpha	= PLSC_alpha;
-		PLSC::beta	= PLSC_beta;
+		PLSC::mean	= PLSC_mean;
+		PLSC::var	= PLSC_var;
 
 		// remove the GPMap
 		m_pPointNormalCloudGPMap.reset();
@@ -345,8 +327,8 @@ public:
 	GP::DlibScalar trainByMinimizingNegEvalAccu(const pcl::PointCloud<pcl::PointNormal>::ConstPtr			&pPointNormalCloudGPMap,
 															  PointXYZCloudPtrList		*pHitPointCloudPtrList,
 															  PointXYZVList				*pSensorPositionList,
-															  float									&PLSC_alpha, 
-															  float									&PLSC_beta, 
+															  float									&PLSC_mean, 
+															  float									&PLSC_var, 
 															  const int								maxIter, 
 															  const GP::DlibScalar				minValue = 1e-15)
 	{
@@ -359,20 +341,20 @@ public:
 		// conversion from PLSC hyperparameters to a Dlib vector
 		GP::DlibVector hypDlib;
 		hypDlib.set_size(2);
-		hypDlib(0, 0) = PLSC_alpha;
-		hypDlib(1, 0) = PLSC_beta;
+		hypDlib(0, 0) = PLSC_mean;
+		hypDlib(1, 0) = log(PLSC_var);
 
 		// trainer
 		const long NPT = 4;
 		GP::DlibScalar negEvalAccu = GP::TrainerUsingApproxDerivatives<OctoMap>::train<GP::BOBYQA, GP::NoStopping>(hypDlib, *this, maxIter, minValue, NPT);
 
 		// conversion from a Dlib vector to PLSC hyperparameters
-		PLSC_alpha	= hypDlib(0, 0);
-		PLSC_beta	= hypDlib(1, 0);
+		PLSC_mean	= hypDlib(0, 0);
+		PLSC_var		= expf(hypDlib(1, 0));
 
 		// set the static variables
-		PLSC::alpha	= PLSC_alpha;
-		PLSC::beta	= PLSC_beta;
+		PLSC::mean	= PLSC_mean;
+		PLSC::var	= PLSC_var;
 
 		// remove the GPMap
 		m_pPointNormalCloudGPMap.reset();
@@ -390,8 +372,8 @@ public:
 		static size_t numCall = 0;
 
 		// convert a Dlib vector to PLSC hyperparameters
-		PLSC::alpha	= hypDlib(0, 0);
-		PLSC::beta	= hypDlib(1, 0);
+		PLSC::mean	= hypDlib(0, 0);
+		PLSC::var	= expf(hypDlib(1, 0));
 
 		// sum of negative log predictive probability
 		if(m_fTrainByMinimizingSumNegLogPredProb)
@@ -423,7 +405,7 @@ public:
 
 			// log file
 			LogFile logFile;
-			logFile << "[" << numCall++ << "] (" << PLSC::alpha << ", "  << PLSC::beta  << ") : " << sum_neg_log_probability << std::endl;
+			logFile << "[" << numCall++ << "] (" << PLSC::mean << ", "  << PLSC::var  << ") : " << sum_neg_log_probability << std::endl;
 
 			return sum_neg_log_probability;
 		}
@@ -443,7 +425,7 @@ public:
 
 		// log file
 		LogFile logFile;
-		logFile << "[" << numCall++ << "] (" << PLSC::alpha << ", "  << PLSC::beta  << ") : " << -neg_accuracy << " = "
+		logFile << "[" << numCall++ << "] (" << PLSC::mean << ", "  << PLSC::var  << ") : " << -neg_accuracy << " = "
 				  << num_voxels_correct << " / (" << num_voxels_correct << " + " << num_voxels_wrong << ")" << std::endl;
 
 		return neg_accuracy;
@@ -452,14 +434,12 @@ public:
 protected:
 	/** @brief	Convert a GPMap to an Octree or a ColorOctree based on PLSC */
 	void GPMap2Octomap(const pcl::PointCloud<pcl::PointNormal>	&pointCloudGPMap,
-							 const float										maxVarThld = std::numeric_limits<float>::max(),
 							 const bool											fSetLogOddValue = true);
 
 	/** @brief	Convert a GPMap to an Octree based on PLSC */
 	void GPMap2Octomap(const pcl::PointCloud<pcl::PointNormal>	&pointCloudGPMap,
 							 const float										minVarRangeForColor,
 							 const float										maxVarRangeForColor,
-							 const float										maxVarThld = std::numeric_limits<float>::max(),
 							 const bool											fSetLogOddValue = true);
 
 	/** @brief Log odd = log(p/(1-p)) */
@@ -498,7 +478,6 @@ protected:
 /** @brief	Convert a GPMap to an Octree based on PLSC */
 template <>
 void OctoMap<NO_COLOR>::GPMap2Octomap(const pcl::PointCloud<pcl::PointNormal>		&pointCloudGPMap,
-												  const float											maxVarThld,
 												  const bool											fSetLogOddValue)
 {
 	// set logodd value
@@ -509,9 +488,6 @@ void OctoMap<NO_COLOR>::GPMap2Octomap(const pcl::PointCloud<pcl::PointNormal>		&
 		{
 			// point
 			const pcl::PointNormal &point = pointCloudGPMap.points[i];
-
-			// variance check
-			if(point.normal_y > maxVarThld) continue;
 
 			// PLSC
 			const float occupied_probabiliy = PLSC::occupancy(point.normal_x, point.normal_y);
@@ -530,9 +506,6 @@ void OctoMap<NO_COLOR>::GPMap2Octomap(const pcl::PointCloud<pcl::PointNormal>		&
 		{
 			// point
 			const pcl::PointNormal &point = pointCloudGPMap.points[i];
-
-			// variance check
-			if(point.normal_y > maxVarThld) continue;
 
 			// PLSC
 			const float occupied_probabiliy = PLSC::occupancy(point.normal_x, point.normal_y);
@@ -561,7 +534,6 @@ void OctoMap<NO_COLOR>::GPMap2Octomap(const pcl::PointCloud<pcl::PointNormal>		&
 /** @brief	Convert a GPMap to a ColorOctree based on PLSC */
 template <>
 void OctoMap<COLOR>::GPMap2Octomap(const pcl::PointCloud<pcl::PointNormal>		&pointCloudGPMap,
-											  const float											maxVarThld,
 											  const bool											fSetLogOddValue)
 {
 	// get min, max
@@ -580,9 +552,6 @@ void OctoMap<COLOR>::GPMap2Octomap(const pcl::PointCloud<pcl::PointNormal>		&poi
 		{
 			// point
 			const pcl::PointNormal &point = pointCloudGPMap.points[i];
-
-			// variance check
-			if(point.normal_y > maxVarThld) continue;
 
 			// PLSC
 			const float occupied_probabiliy = PLSC::occupancy(point.normal_x, point.normal_y);
@@ -607,9 +576,6 @@ void OctoMap<COLOR>::GPMap2Octomap(const pcl::PointCloud<pcl::PointNormal>		&poi
 		{
 			// point
 			const pcl::PointNormal &point = pointCloudGPMap.points[i];
-
-			// variance check
-			if(point.normal_y > maxVarThld) continue;
 
 			// PLSC
 			const float occupied_probabiliy = PLSC::occupancy(point.normal_x, point.normal_y);
@@ -646,7 +612,6 @@ template <>
 void OctoMap<COLOR>::GPMap2Octomap(const pcl::PointCloud<pcl::PointNormal>		&pointCloudGPMap,
 											  const float											minVarRangeForColor,
 											  const float											maxVarRangeForColor,
-											  const float											maxVarThld,
 											  const bool											fSetLogOddValue)
 {
 	// color map
@@ -661,9 +626,6 @@ void OctoMap<COLOR>::GPMap2Octomap(const pcl::PointCloud<pcl::PointNormal>		&poi
 		{
 			// point
 			const pcl::PointNormal &point = pointCloudGPMap.points[i];
-
-			// variance check
-			if(point.normal_y > maxVarThld) continue;
 
 			// PLSC
 			const float occupied_probabiliy = PLSC::occupancy(point.normal_x, point.normal_y);
@@ -689,9 +651,6 @@ void OctoMap<COLOR>::GPMap2Octomap(const pcl::PointCloud<pcl::PointNormal>		&poi
 		{
 			// point
 			const pcl::PointNormal &point = pointCloudGPMap.points[i];
-
-			// variance check
-			if(point.normal_y > maxVarThld) continue;
 
 			// PLSC
 			const float occupied_probabiliy = PLSC::occupancy(point.normal_x, point.normal_y);

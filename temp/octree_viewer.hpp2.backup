@@ -239,10 +239,9 @@ public:
 	{
 #if 1
 		// voxel centers
-		m_octree.getOccupiedVoxelCenters(m_pVoxelCenterPointCloud->points);
 		//m_octree.getOccupiedVoxelCenters(m_pVoxelCenterPointCloud->points, true);
 		//m_octree.getOccupiedVoxelCenters(m_pVoxelCenterPointCloud->points, false);
-		//m_octree.getOccupiedCellCenters(m_pVoxelCenterPointCloud->points, m_occupancyThreshold, true);
+		m_octree.getOccupiedCellCenters(m_pVoxelCenterPointCloud->points, m_occupancyThreshold, true);
 #else
 		// clear
 		m_pVoxelCenterPointCloud->clear();

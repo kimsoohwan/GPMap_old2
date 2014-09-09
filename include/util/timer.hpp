@@ -80,9 +80,15 @@ public:
 					  << "Total CPU time (user+system): " << ns2sec(elapsed.m_cpu_times.user + elapsed.m_cpu_times.system) << " seconds\n\n"
 					  << "[boost::chrono]\n"
 					  << "User CPU time: "		<< elapsed.m_user_sec		<< " seconds\n"
-					  << "System CPU time: "	<< elapsed.m_system_sec	<< " seconds\n"
+					  << "System CPU time: "	<< elapsed.m_system_sec		<< " seconds\n"
 					  << "Wall-clock time: "	<< elapsed.m_real_sec		<< " seconds\n"
 					  << "Total CPU time (user+system): " << elapsed.m_user_sec + elapsed.m_system_sec << " seconds\n\n";
+	}
+
+	/** @brief Boost timer wall-clock time */
+	inline float wall_clock_time() const
+	{
+		return ns2sec(m_cpu_times.wall);
 	}
 
 	void clear()

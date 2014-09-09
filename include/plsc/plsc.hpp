@@ -33,31 +33,60 @@ inline float normcdf(float x)
 	return 0.5f * (1.f + sign*y);
 }
 
+//class PLSC
+//{
+//public:
+//	/** @brief Probability of the point being occupied */
+//	//static inline float occupancy(const float mu, const float sigma)
+//	//{
+//	//	return normcdf((mean - mu) / sqrt(sigma + var));
+//	//}
+//	static inline float occupancy(const float mu, const float sigma)
+//	{
+//		return 1.f - normcdf((mean - mu) / sqrt(sigma + var));
+//	}
+//
+//public:
+//	static float mean;	// mean of the profit likelihood
+//	static float var;		// variance of the profit likelihood
+//	//static Vector hyp;
+//};
+//
+//float PLSC::mean = 0.05f;
+//float PLSC::var = 0.0001f;
+
 class PLSC
 {
 public:
 	/** @brief Probability of the point being occupied */
-	static inline float occupancy(const float mu, const float sigma)
+	//static inline float occupancy(const float mean, const float var)
+	//{
+	//	return normcdf((alpha*mean + beta) / sqrt(1 + alpha*alpha*var));
+	//}
+	//static inline float occupancy(const float mean, const float var)
+	//{
+	//	return normcdf((mean - beta) / powf(sqrt(var), alpha));
+	//}
+	//static inline float occupancy(const float mean, const float var)
+	//{
+	//	return normcdf(mean / (sqrt(var)*alpha + beta));
+	//}
+	//static inline float occupancy(const float mean, const float var)
+	//{
+	//	return normcdf((mean - beta) / (sqrt(var)*alpha));
+	//}
+	static inline float occupancy(const float mu, const float var)
 	{
-		return normcdf((mean - mu) / sqrt(sigma + var));
+		//return 1.f - normcdf((alpha - mu) / sqrt(var + beta));
+		return normcdf((mu - alpha) / sqrt(var + beta));
 	}
-
 public:
-	static float mean;	// mean of the profit likelihood
-	static float var;		// variance of the profit likelihood
-	//static Vector hyp;
+	static float alpha;
+	static float beta;
 };
 
-float PLSC::mean = 0.05f;
-float PLSC::var = 0.0001f;
-//Vector PLSC::hyp = Vector(2);
-
-//const float PLSC_mean(0.05f);
-//const float PLSC_variance(0.0001f);
-//inline float PLSC(const float mean, const float variance)
-//{
-//	return normcdf((PLSC_mean - mean) / sqrt(variance + PLSC_variance));
-//}
+float PLSC::alpha		= 1.f;
+float PLSC::beta		= 0.f;
 
 }
 

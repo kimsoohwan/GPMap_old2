@@ -115,8 +115,8 @@ bool random_data_partition(const std::vector<int>				&indices,
 									std::vector<std::vector<int> >	&partitionedIndices,
 									const bool								fSuffling = true)
 {
-	// point cloud check
-	assert(M > 0);
+	// if the maximum limit is less or equal to zero, do not divide!
+	if(M <= 0) return false;
 
 	// size
 	const int N = indices.size();
@@ -140,6 +140,80 @@ bool random_data_partition(const std::vector<int>				&indices,
 	}
 
 	return true;
+}
+
+bool random_sampling(const std::vector<int>				&indices,
+							const int								M, // maximum limit of the number of points in a leaf node of an octree
+							std::vector<int>						&randomSampleIndices,
+							const bool								fSuffling = true)
+{
+	// if the maximum limit is less or equal to zero, do not divide!
+	if(M <= 0) return false;
+
+	// size
+	const int N = indices.size();
+	if(N <= M) return false;
+
+	// suffled indices
+	std::vector<int> suffledIndices(indices);
+	if(fSuffling) std::random_shuffle(suffledIndices.begin(), suffledIndices.end());
+
+	// copy
+	randomSampleIndices.resize(M);
+	std::copy(suffledIndices.begin(), suffledIndices.begin() + M, randomSampleIndices.begin());
+
+	return true;
+}
+
+template <typename PointT>
+typename pcl::PointCloud<PointT>::Ptr
+randomSampling(const typename pcl::PointCloud<PointT>::ConstPtr	&pCloud,
+					const float														samplingRatio,
+					const bool														fSuffling = true)
+{
+	// size
+	const int N = static_cast<int>(pCloud->points.size());
+	const int M = static_cast<int>(ceil(static_cast<float>(N)*samplingRatio));
+
+	// random indices
+	std::vector<int> indices(N);
+	std::generate(indices.begin(), indices.end(), UniqueNonZeroInteger());
+	std::vector<int> randomSampleIndices;
+	random_sampling(indices, M, randomSampleIndices, fSuffling);
+
+	// new point cloud
+	typename pcl::PointCloud<PointT>::Ptr pSampledCloud(new pcl::PointCloud<PointT>());
+
+	// resize
+	pSampledCloud->header = pCloud->header;
+	pSampledCloud->points.resize(M);
+
+	// copy
+	for (size_t i = 0; i < M; ++i)
+	{
+		pSampledCloud->points[i] = pCloud->points[randomSampleIndices[i]];
+	}
+
+	// resize
+	pSampledCloud->height = 1;
+	pSampledCloud->width  = static_cast<uint32_t>(M);
+
+	return pSampledCloud;
+}
+
+template <typename PointT>
+void randomSampling(const std::vector<typename pcl::PointCloud<PointT>::Ptr>		&cloudPtrList,
+						  const float																	samplingRatio,
+						  std::vector<typename pcl::PointCloud<PointT>::Ptr>				&filteredCloudPtrList)
+{
+	// reset
+	filteredCloudPtrList.resize(cloudPtrList.size());
+
+	// for each point cloud
+	for(size_t i = 0; i < cloudPtrList.size(); i++)
+	{
+		filteredCloudPtrList[i] = randomSampling<PointT>(cloudPtrList[i], samplingRatio);
+	}
 }
 
 //template <typename PointT>

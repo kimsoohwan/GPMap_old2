@@ -79,7 +79,7 @@ public:
 					const size_t			MIN_NUM_POINTS_TO_PREDICT,
 					const size_t			MAX_NUM_POINTS_TO_PREDICT,
 					const bool				FLAG_INDEPENDENT_TEST_POSITIONS,
-					const float				FLAG_RAMDOMLY_SAMPLE_POINTS = false,
+					const float				RANDOM_SAMPLING_RATE = 0.f,
 					const bool				FLAG_DUPLICATE_POINTS = true) // false
 		: pcl::octree::OctreePointCloud<MyPoinT, LeafT, BranchT, OctreeT>(BLOCK_SIZE),
 		  BLOCK_SIZE_								(resolution_),
@@ -89,7 +89,7 @@ public:
 		  MIN_NUM_POINTS_TO_PREDICT_			(max<size_t>(1, MIN_NUM_POINTS_TO_PREDICT)),
 		  MAX_NUM_POINTS_TO_PREDICT_			(static_cast<int>(MAX_NUM_POINTS_TO_PREDICT)),
 		  FLAG_INDEPENDENT_TEST_POSITIONS_	(FLAG_INDEPENDENT_TEST_POSITIONS),
-		  FLAG_RAMDOMLY_SAMPLE_POINTS_					(FLAG_RAMDOMLY_SAMPLE_POINTS),
+		  RANDOM_SAMPLING_RATE_					(RANDOM_SAMPLING_RATE),
 		  FLAG_DUPLICATE_POINTS_				(FLAG_DUPLICATE_POINTS),
 		  m_pXs(new Matrix(NUM_CELLS_PER_BLOCK_, 3))
    {
@@ -510,13 +510,6 @@ public:
 		CPU_Times	t_predict;
 		CPU_Times	t_combine;
 
-		// initialize leaf node
-		// Sigma_0^{-1}
-		GP::TestData<float> testData;
-		testData.set(m_pXs);
-		MatrixPtr pKss = CovFunc<float>::Kss(logHyp.cov, testData, FLAG_INDEPENDENT_TEST_POSITIONS_);
-		BCM::setPrior(pKss);
-
 		// if a point index is duplicated to 
 		if(FLAG_DUPLICATE_POINTS_)
 		{
@@ -682,10 +675,6 @@ public:
 			logFile << "done: with avg " << avgNumPoints << " points in a 3x3x3 block "
 						<< "during " << timer.elapsed().wall_clock_time() << " sec" << std::endl;
 		}
-
-
-		// reset prior
-		BCM::resetPrior();
 
 		//logFile << "min: (" << minX_ << ", " << minY_ << ", " << minZ_ << "), "
 		//		  << "max: (" << maxX_ << ", " << maxY_ << ", " << maxZ_ << ")" << std::endl;
@@ -1400,8 +1389,6 @@ protected:
 		return isCellNotOccupied(pMean, pVariance, ix, iy, iz, occupancyThreshold);
 	}
 
-	void initializeLeafNode();
-
 	/** @details	The leaf node has only index vector, 
 	  *				no information about the point cloud or min/max boundary of the voxel.
 	  *				Thus, prediction is done in OctreeGPMap not in LeafT.
@@ -1424,7 +1411,7 @@ protected:
 		// if the data is too big, divide and conquer
 		// assume that subset training data are independent
 		std::vector<std::vector<int> > partitionedIndices;
-		if(!FLAG_RAMDOMLY_SAMPLE_POINTS_ && random_data_partition(indexList, MAX_NUM_POINTS_TO_PREDICT_, partitionedIndices))
+		if(RANDOM_SAMPLING_RATE_ != 0.f && random_data_partition(indexList, MAX_NUM_POINTS_TO_PREDICT_, partitionedIndices))
 		{
 			// log file
 			//LogFile logFile;
@@ -1458,7 +1445,7 @@ protected:
 			// training data
 			MatrixPtr pX, pXd; VectorPtr pYYd;
 			std::vector<int> randomSampleIndices;	// randomly sample points
-			if(FLAG_RAMDOMLY_SAMPLE_POINTS_ && random_sampling(indexList, MAX_NUM_POINTS_TO_PREDICT_, randomSampleIndices))
+			if(RANDOM_SAMPLING_RATE_ > 0 && random_sampling(indexList, RANDOM_SAMPLING_RATE_ * static_cast<float>(indexList.size()), randomSampleIndices))
 			{
 				generateTrainingData(input_, randomSampleIndices, m_gap, pX, pXd, pYYd);	
 			}
@@ -1551,7 +1538,7 @@ protected:
 	const bool		FLAG_INDEPENDENT_TEST_POSITIONS_;
 
 	/** @brief		Random sampling rate in a leaf nodes */
-	const bool		FLAG_RAMDOMLY_SAMPLE_POINTS_;
+	const float		RANDOM_SAMPLING_RATE_;
 
 	/** @brief Size of each block (voxel) */
 	double			&BLOCK_SIZE_;

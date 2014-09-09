@@ -150,7 +150,7 @@ void loadSensorPositionList(PointXYZVList			&sensorPositionList,
 	// for each file name
 	for(size_t i = 0; i < strFileNames.size(); i++)
 	{
-		logFile << "Loading " << strFileNames[i] << " ... ";
+		logFile << "Loading the sensor position of " << strFileNames[i] << " ... ";
 
 		// file name
 		const std::string strFileName = strPrefix + strFileNames[i] + strSuffix;

@@ -66,6 +66,66 @@ TEST(Octree, DataPartitioning)
 			std::cout << std::endl;
 		}
 	}
+}
+
+TEST(Octree, DataSampling)
+{
+	// indices
+	const int N = 10;
+	std::vector<int> indices(N);
+	std::generate(indices.begin(), indices.end(), UniqueNonZeroInteger());
+
+	// random sampling
+	const int M = 5;
+	std::vector<int> randomSampleIndices;
+	random_sampling(indices, M, randomSampleIndices, false);
+
+	// check
+	EXPECT_EQ(M, randomSampleIndices.size());
+	for(int i = 0; i < M; i++)
+	{
+		EXPECT_EQ(i, randomSampleIndices[i]);
+	}
+
+	// random sampling
+	std::vector<int> randomSampleIndices2;
+	random_sampling(indices, M, randomSampleIndices);
+	for(size_t i = 0; i < randomSampleIndices.size(); i++)
+	{
+		std::cout << randomSampleIndices[i] << ", ";
+	}
+	std::cout << std::endl;
+}
+
+TEST(Octree, RandomSampling)
+{
+	// original point cloud
+	const int N = 10;
+	pcl::PointCloud<pcl::PointXYZ>::Ptr pCloud(new pcl::PointCloud<pcl::PointXYZ>());
+	for(int i = 0; i < N; i++)
+	{
+		pCloud->push_back(pcl::PointXYZ(i, i, i));
+	}
+
+	// sampled point cloud
+	const float samplingRatio = 0.4;
+	pcl::PointCloud<pcl::PointXYZ>::Ptr pRandomlySampledCloud = randomSampling<pcl::PointXYZ>(pCloud, samplingRatio, false);
+	const int M = static_cast<int>(ceil(static_cast<float>(N)*samplingRatio));
+	EXPECT_EQ(M, pRandomlySampledCloud->points.size());
+	for (int i = 0; i < M; ++i)
+	{
+		pRandomlySampledCloud->points[i].x = pCloud->points[i].x;
+		pRandomlySampledCloud->points[i].y = pCloud->points[i].y;
+		pRandomlySampledCloud->points[i].z = pCloud->points[i].z;
+	}
+
+	pcl::PointCloud<pcl::PointXYZ>::Ptr pRandomlySampledCloud2 = randomSampling<pcl::PointXYZ>(pCloud, samplingRatio, true);
+	for (int i = 0; i < M; ++i)
+	{
+		std::cout << pRandomlySampledCloud2->points[i].x << ", "
+					 << pRandomlySampledCloud2->points[i].y << ", "
+					 << pRandomlySampledCloud2->points[i].z << std::endl;
+	}
 
 }
 

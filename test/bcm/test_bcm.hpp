@@ -150,7 +150,7 @@ TEST_F(TestBCM, CovTest)
 	VectorPtr pMean;
 	MatrixPtr pCov;
 	get(pMean, pCov);
-	EXPECT_TRUE(pCov->isApprox(*pCovFinal));
+	EXPECT_TRUE(pCov->isApprox(pCovFinal->diagonal())); // get a variance!!! 
 	EXPECT_TRUE(pMean->isApprox(*pMeanByCovFinal));
 }
 

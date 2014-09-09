@@ -16,7 +16,6 @@ using GP::LogFile;
 #include "octree/octree_gpmap.hpp"			// OctreeGPMap
 #include "octree/octree_container.hpp"		// OctreeGPMapContainer
 #include "bcm/bcm.hpp"							// BCM
-#include "bcm/bcm_serializable.hpp"			// BCM_Serializable
 #include "bcm/gaussian.hpp"					// GaussianDistribution
 
 const int RUN_ALL_WITH_TRAINING_ONCE = false;
@@ -165,8 +164,7 @@ void gpmap_batch(const double		BLOCK_SIZE,
 
 /** @brief	Building a GPMap with all-in-one observations with possible incremental update
   * @note	Note that if the number of points exceed the limit, incremental update is activated */
-template<typename BCM_T,
-			template<typename> class MeanFunc, 
+template<template<typename> class MeanFunc, 
 			template<typename> class CovFunc, 
 			template<typename> class LikFunc,
 			template <typename, 
@@ -198,7 +196,7 @@ void gpmap_incremental(const double		BLOCK_SIZE,
 	getMinMaxPointXYZ<pcl::PointNormal>(*pAllPointNormalCloud, min_pt, max_pt);
 
 	// gpmap with BCM leaf nodes
-	typedef OctreeGPMapContainer<BCM_T>	LeafT;
+	typedef OctreeGPMapContainer<BCM>	LeafT;
 	typedef OctreeGPMap<MeanFunc, CovFunc, LikFunc, InfMethod, LeafT> OctreeGPMapT;
 	OctreeGPMapT gpmap(BLOCK_SIZE, 
 							 NUM_CELLS_PER_AXIS, 
@@ -233,8 +231,7 @@ void gpmap_incremental(const double		BLOCK_SIZE,
 
 /** @brief Building a GPMap with sequential observations
   *			incrementally if the number of points exceed the limit */
-template<typename BCM_T,
-			template<typename> class MeanFunc, 
+template<template<typename> class MeanFunc, 
 			template<typename> class CovFunc, 
 			template<typename> class LikFunc,
 			template <typename, 
@@ -277,7 +274,7 @@ void gpmap_incremental(const double		BLOCK_SIZE,							// block size
 	getMinMaxPointXYZ<pcl::PointNormal>(pointNormalCloudList, min_pt, max_pt);
 
 	// gpmap with BCM leaf nodes
-	typedef OctreeGPMapContainer<BCM_T>	LeafT;
+	typedef OctreeGPMapContainer<BCM>	LeafT;
 	typedef OctreeGPMap<MeanFunc, CovFunc, LikFunc, InfMethod, LeafT> OctreeGPMapT;
 	OctreeGPMapT gpmap(BLOCK_SIZE,
 							 NUM_CELLS_PER_AXIS,
@@ -559,8 +556,7 @@ void build_gpmaps_with_all_in_one_observations(const double				BLOCK_SIZE,						
 	else										strFileName = strOutputFileName + "(all)_iBCM";
 	logFile.open(strLogFolder + strFileName + ".log");	
 	const bool FLAG_INDEPENDENT_TEST_POSITIONS = true;
-	gpmap_incremental<BCM,
-							MeanFunc, 
+	gpmap_incremental<MeanFunc, 
 							CovFunc, 
 							LikFunc, 
 							InfMethod>(BLOCK_SIZE,								// block size
@@ -576,25 +572,24 @@ void build_gpmaps_with_all_in_one_observations(const double				BLOCK_SIZE,						
 										  strOutputFolder + strFileName);	// save file path
 
 	// [2] GPMap - All-in-One Observations - Incremental Update (BCM)
-	if(FLAG_RAMDOMLY_SAMPLE_POINTS)	strFileName = strOutputFileName + "(all_samples)_BCM";
-	else										strFileName = strOutputFileName + "(all)_BCM";
-	logFile.open(strLogFolder + strFileName + ".log");	
-	const bool FLAG_DEPENDENT_TEST_POSITIONS = false;
-	gpmap_incremental<BCM_Serializable,
-							MeanFunc, 
-							CovFunc, 
-							LikFunc, 
-							InfMethod>(BLOCK_SIZE,								// block size
-										  NUM_CELLS_PER_AXIS,					// number of cells per each axie
-										  MIN_NUM_POINTS_TO_PREDICT,			// min number of points to predict
-										  MAX_NUM_POINTS_TO_PREDICT,			// max number of points to predict
-										  FLAG_DEPENDENT_TEST_POSITIONS,		// predict means and covariances
-										  FLAG_RAMDOMLY_SAMPLE_POINTS,		// randomly sample points in each leaf node
-										  logHyp,									// hyperparameters
-										  pAllInOneObs,							// observations
-										  gap,										// gap for free points
-										  maxIterBeforeUpdate,					// number of iterations for training before update
-										  strOutputFolder + strFileName);	// save file path
+	//if(FLAG_RAMDOMLY_SAMPLE_POINTS)	strFileName = strOutputFileName + "(all_samples)_BCM";
+	//else										strFileName = strOutputFileName + "(all)_BCM";
+	//logFile.open(strLogFolder + strFileName + ".log");	
+	//const bool FLAG_DEPENDENT_TEST_POSITIONS = false;
+	//gpmap_incremental<MeanFunc, 
+	//						CovFunc, 
+	//						LikFunc, 
+	//						InfMethod>(BLOCK_SIZE,								// block size
+	//									  NUM_CELLS_PER_AXIS,					// number of cells per each axie
+	//									  MIN_NUM_POINTS_TO_PREDICT,			// min number of points to predict
+	//									  MAX_NUM_POINTS_TO_PREDICT,			// max number of points to predict
+	//									  FLAG_DEPENDENT_TEST_POSITIONS,		// predict means and covariances
+	//									  FLAG_RAMDOMLY_SAMPLE_POINTS,		// randomly sample points in each leaf node
+	//									  logHyp,									// hyperparameters
+	//									  pAllInOneObs,							// observations
+	//									  gap,										// gap for free points
+	//									  maxIterBeforeUpdate,					// number of iterations for training before update
+	//									  strOutputFolder + strFileName);	// save file path
 }
 
 /** @brief	Build GPMaps with Sequential [Function/Derivative/All] Observations */
@@ -644,8 +639,7 @@ void build_gpmaps_with_sequential_observations(const double				BLOCK_SIZE,						
 	else										strFileName = strOutputFileName + "(seq)_iBCM";
 	logFile.open(strLogFolder + strFileName + ".log");	
 	const bool FLAG_INDEPENDENT_TEST_POSITIONS = true;
-	gpmap_incremental<BCM,
-							MeanFunc, 
+	gpmap_incremental<MeanFunc, 
 							CovFunc, 
 							LikFunc, 
 							InfMethod>(BLOCK_SIZE,								// block size
@@ -665,8 +659,7 @@ void build_gpmaps_with_sequential_observations(const double				BLOCK_SIZE,						
 	else										strFileName = strOutputFileName + "(seq)_BCM";
 	logFile.open(strLogFolder + strFileName + ".log");	
 	const bool FLAG_DEPENDENT_TEST_POSITIONS = false;
-	gpmap_incremental<BCM_Serializable,
-							MeanFunc, 
+	gpmap_incremental<MeanFunc, 
 							CovFunc, 
 							LikFunc, 
 							InfMethod>(BLOCK_SIZE,								// block size

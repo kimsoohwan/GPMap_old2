@@ -192,19 +192,34 @@ rangeRemoval(typename pcl::PointCloud<PointT>::ConstPtr cloud,
 
 template <typename PointT>
 typename pcl::PointCloud<PointT>::Ptr
-downSample(const typename pcl::PointCloud<PointT>::ConstPtr		&cloud,
+downSampling(const typename pcl::PointCloud<PointT>::ConstPtr		&pCloud,
 			  const float														leafSize)
 {
 	// build the filter
 	pcl::VoxelGrid<PointT> vg;
-	vg.setInputCloud(cloud);
+	vg.setInputCloud(pCloud);
 	vg.setLeafSize(leafSize, leafSize, leafSize);
 
 	// apply filter
-	pcl::PointCloud<PointT>::Ptr cloud_filtered(new pcl::PointCloud<PointT>());
-	vg.filter(*cloud_filtered);
+	pcl::PointCloud<PointT>::Ptr pFilteredCloud(new pcl::PointCloud<PointT>());
+	vg.filter(*pFilteredCloud);
 
-	return cloud_filtered;
+	return pFilteredCloud;
+}
+
+template <typename PointT>
+void downSampling(const std::vector<typename pcl::PointCloud<PointT>::Ptr>		&cloudPtrList,
+					 const float																	leafSize,
+					 std::vector<typename pcl::PointCloud<PointT>::Ptr>				&filteredCloudPtrList)
+{
+	// reset
+	filteredCloudPtrList.resize(cloudPtrList.size());
+
+	// for each point cloud
+	for(size_t i = 0; i < cloudPtrList.size(); i++)
+	{
+		filteredCloudPtrList[i] = downSampling<PointT>(cloudPtrList[i], leafSize);
+	}
 }
 
 template <typename NormalT>

@@ -3,12 +3,10 @@
 
 // STL
 #include <string>
-#include <sstream>
 #include <fstream>
 
 // Boost
 #include <boost/serialization/split_member.hpp>
-#include <boost/filesystem.hpp>	// oost::filesystem::exists, remove
 
 // GPMap
 #include "bcm.hpp"
@@ -22,33 +20,16 @@ public:
 	/** @brief Default Constructor */
 	BCM_Serializable()
 		: m_fDumped(false)
-	{
-	}
-
-	/** @brief Default Destructor */
-	virtual ~BCM_Serializable()
-	{
-		// remove temporary file
-		if(m_fDumped)
-		{
-			if(boost::filesystem::exists(mem2str()))
-				boost::filesystem::remove(mem2str());
-		} 
-	}
+	{}
 
 	/** @brief Get mean and [co]variance */
-	inline bool get(VectorPtr &pMean, MatrixPtr &pVar)
+	inline void get(VectorPtr &pMean, MatrixPtr &pCov)
 	{
 		// load if necessary
 		load();
 
 		// get
-		const bool ret = BCM::get(pMean, pVar);
-
-		// dump
-		dump();
-
-		return ret;
+		BCM::get(pMean, pCov);
 	}
 
 	/** @brief Update the mean and [co]variance */
@@ -57,58 +38,31 @@ public:
 		// load if necessary
 		load();
 
-		// update
+		// get
 		BCM::update(pMean, pCov);
-
-		// dump
-		dump();
 	}
 
-	///** @brief Comparison Operator */
-	//inline bool operator==(BCM_Serializable &other)
-	//{
-	//	// load the data
-	//	load();
-	//	other.load();
-
-	//	// compare
-	//	const bool comparison = static_cast<BCM>(*this) == static_cast<BCM>(other);
-
-	//	// dump
-	//	dump();
-	//	other.dump();
-
-	//	return comparison;
-	//}
-
-	///** @brief Comparison Operator */
-	//inline bool operator!=(const BCM_Serializable &other)
-	//{
-	//	return !((*this) == other);
-	//}
-
-protected:
-	/** @brief Convert the unique memory address to string */
-	inline std::string mem2str() const
+	/** @brief Check if the data was dumpted into a file */
+	inline bool isDumpted() const
 	{
-		const void *address = static_cast<const void*>(this);
-		std::stringstream ss;
-		ss << address;  
-		return ss.str(); 
+		return m_fDumped;
 	}
 
 	/** @brief Dump all the data */
-	bool dump()
+	bool dump(const std::string &filename)
 	{
 		// check initialized
 		if(!isInitialized()) return false;
 
 		// save
-		if(!GPMap::serialize(*this, mem2str())) return false;
+		if(!GPMap::serialize(*this, filename)) return false;
 
 		// deallocate memories
 		m_pSumOfWeightedMeans.reset();
 		m_pSumOfInvCovs.reset();
+
+		// remember file name
+		m_strDumpFileName = filename;
 
 		// turn the flag on
 		m_fDumped = true;
@@ -123,12 +77,21 @@ protected:
 		if(!m_fDumped) return false;
 
 		// load
-		if(!GPMap::deserialize(*this, mem2str())) return false;
+		if(!GPMap::deserialize(*this, m_strDumpFileName)) return false;
+
+		// clear file name
+		m_strDumpFileName.clear();
 
 		// turn the flag off
 		m_fDumped = false;
 
 		return true;
+	}
+
+	/** @brief Load all the data */
+	bool isSameDumpFileName(const std::string &strDumpFileName) const
+	{
+		return (m_strDumpFileName.compare(strDumpFileName) == 0);
 	}
 
 protected:
@@ -210,6 +173,9 @@ protected:
 protected:
 	/** @brief	Flag for serialization */
 	bool				m_fDumped;
+
+	/** @brief	Dumped file name */
+	std::string		m_strDumpFileName;
 };
 
 

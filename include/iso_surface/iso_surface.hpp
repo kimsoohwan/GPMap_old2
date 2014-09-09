@@ -554,15 +554,19 @@ public:
 		: m_resolution(resolution)
 	{
 	}
-	
+
 	/** @brief	Convert a GPMap to an Octree or a ColorOctree based on PLSC */
-	size_t insertMeanVarFromGPMap(const pcl::PointCloud<pcl::PointNormal>	&pointCloud)
+	size_t insertMeanVarFromGPMap(const pcl::PointCloud<pcl::PointNormal>	&pointCloud,
+											const float											maxVarThld = std::numeric_limits<float>::max())
 	{
 		// for each point
 		for(size_t i = 0; i < pointCloud.points.size(); i++)
 		{
 			// point
 			const pcl::PointNormal &point = pointCloud.points[i];
+
+			// variance check
+			if(point.normal_y > maxVarThld) continue;
 
 			// insert
 			insertMeanVar(point.x, point.y, point.z, point.normal_x, point.normal_y);
@@ -683,11 +687,6 @@ public:
 
 			// if all 8 neighbors do not exit, move to the next cube
 			if(!bCubeExists) continue;
-			//for(unsigned int iVertex = 0; iVertex < 8; iVertex++)
-			//{
-			//	std::cout << afCubeMean[iVertex] << ", ";
-			//}
-			//std::cout << std::endl;
 
 			//Find which vertices are inside of the surface and which are outside
 			int iFlagIndex = 0;
@@ -705,7 +704,6 @@ public:
 			{
 					continue;
 			}
-			//std::cout << "Found a valid cube!" << std::endl;
 
 			// real 3D point
 			float x = m_originX + static_cast<float>(currKey.x) * m_resolution;

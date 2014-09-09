@@ -65,7 +65,7 @@ void show(const std::string												&strWindowName,
 
 	// points
 	typename pcl::PointCloud<PointT>::ConstPtr pTempPointCloud;
-	if(downSampleLeafSize > 0)		pTempPointCloud = downSample<PointT>(pPointCloud, downSampleLeafSize);
+	if(downSampleLeafSize > 0)		pTempPointCloud = downSampling<PointT>(pPointCloud, downSampleLeafSize);
 	else									pTempPointCloud = pPointCloud;
 
 	// draw points
@@ -134,7 +134,7 @@ void show(const std::string														&strWindowName,
 
 		// points
 		typename pcl::PointCloud<PointT>::ConstPtr pTempPointCloud;
-		if(downSampleLeafSize > 0)		pTempPointCloud = downSample<PointT>(pPointClouds[i], downSampleLeafSize);
+		if(downSampleLeafSize > 0)		pTempPointCloud = downSampling<PointT>(pPointClouds[i], downSampleLeafSize);
 		else									pTempPointCloud = pPointClouds[i];
 
 		// draw points

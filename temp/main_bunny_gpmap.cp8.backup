@@ -46,7 +46,7 @@ int main(int argc, char** argv)
 	const bool		FLAG_INDEPENDENT_TEST_POSITIONS	= true;
 	const float		GAP										= 0.001f;
 	const int		MAX_ITER_BEFORE_UPDATE				= 0;	// 100
-	typedef	GP::InfExactDerObs<float, GP::MeanZeroDerObs, GP::CovMaternisoDerObs, GP::LikGaussDerObs>::Hyp Hyp;
+	typedef	GP::InfExactDerObs<float, GP::MeanZeroDerObs, GP::CovSparseMaternisoDerObs, GP::LikGaussDerObs>::Hyp Hyp;
 
 	// [0] setting - directory
 	const std::string strInputDataFolder			("../../data/bunny/input/");
@@ -103,7 +103,6 @@ int main(int argc, char** argv)
 	create_directory(strOutputDataFolder);
 	create_directory(strLogFolder);
 
-
 	// [1] Function Observations
 	bool fRunFuncObs = true;
 	std::cout << "[Function Observations] - Do you wish to run? (0/1)"; std::cin >> fRunFuncObs;
@@ -156,7 +155,7 @@ int main(int argc, char** argv)
 
 		// train hyperparameters and build gpmaps
 		train_hyperparameters_and_build_gpmaps<GP::MeanZeroDerObs,
-															GP::CovMaternisoDerObs, 
+															GP::CovSparseMaternisoDerObs, 
 															GP::LikGaussDerObs, 
 															GP::InfExactDerObs>(BLOCK_SIZE,						// block size
 																					  NUM_CELLS_PER_AXIS,			// number of cells per each axie
@@ -229,7 +228,7 @@ int main(int argc, char** argv)
 
 		// train hyperparameters and build gpmaps
 		train_hyperparameters_and_build_gpmaps<GP::MeanZeroDerObs,
-															GP::CovMaternisoDerObs, 
+															GP::CovSparseMaternisoDerObs, 
 															GP::LikGaussDerObs, 
 															GP::InfExactDerObs>(BLOCK_SIZE,						// block size
 																					  NUM_CELLS_PER_AXIS,			// number of cells per each axie

@@ -224,3 +224,6 @@ pip-log.txt
 
 # Log file
 *.log
+
+# Back-up file
+*.backup
